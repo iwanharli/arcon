@@ -37,7 +37,7 @@ _ID_FIELDS = ("nik", "kk", "nomor", "msisdn", "id_pelanggan", "nopol")
 
 # Nilai ter-mask (mis. "626••••••••••31") tidak bisa dibandingkan dengan input,
 # jadi tidak boleh dipakai untuk menyimpulkan "milik permintaan lain".
-_MASK_RE = re.compile(r"[•*x]", re.IGNORECASE)
+_MASK_RE = re.compile(r"[•*]")
 
 
 def _identifier(value: str) -> str | None:

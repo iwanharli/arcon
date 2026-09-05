@@ -16,7 +16,7 @@ EMPTY_MARKERS = {"", "-", "--", "n/a", "null", "none", "tidak ada"}
 # Nilai yang disensor bot, mis. "32••••••••••••05", "•••••••••••99", "KATIN**".
 # Bot kadang mengirim mask dengan escape markdown ("KATIN\*\*"), jadi escape
 # dibersihkan dulu sebelum dicek (lihat _unescape).
-MASK_RE = re.compile(r"[•*x]{2,}", re.IGNORECASE)
+MASK_RE = re.compile(r"[•*]{2,}")
 MD_ESCAPE_RE = re.compile(r"\\([*_`~\[\]()])")
 
 MARITAL_VALUES = {"KAWIN", "BELUM KAWIN", "CERAI HIDUP", "CERAI MATI", "JANDA", "DUDA"}
