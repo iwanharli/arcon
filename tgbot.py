@@ -181,23 +181,23 @@ def format_hasil(hasil: dict, judul: str) -> str:
         if isinstance(f, list):
             blok = []
             for i, r in enumerate(f, 1):
-                blok.append(f"┌ *Data {i}*\n{_fmt_record(r)}")
+                blok.append(f"┌ **Data {i}**\n{_fmt_record(r)}")
             body = "\n\n".join(blok)
-            head = f"✅ *Ditemukan {len(f)} data* — {judul}"
+            head = f"✅ **Ditemukan {len(f)} data** — {judul}"
         elif isinstance(f, dict):
             body = _fmt_record(f)
-            head = f"✅ *Ditemukan* — {judul}"
+            head = f"✅ **Ditemukan** — {judul}"
         else:
             body, head = (hasil.get("msg") or "(kosong)"), f"✅ {judul}"
         return f"{head}\n\n{body}"
     if status == "not_found":
-        return (f"❌ *Tidak ditemukan* — {judul}\n\n"
+        return (f"❌ **Tidak ditemukan** — {judul}\n\n"
                 "Data tidak ada di sumber, atau format input kurang tepat. "
                 "Coba periksa lagi nilainya.")
     if status == "queue_without_data":
-        return (f"⏳ *Sedang sibuk* — {judul}\n\n"
+        return (f"⏳ **Sedang sibuk** — {judul}\n\n"
                 "Sumber data belum membalas. Silakan coba lagi beberapa saat.")
-    return (f"⚠️ *Tidak ada respons* — {judul}\n\n"
+    return (f"⚠️ **Tidak ada respons** — {judul}\n\n"
             "Sumber data tidak menjawab. Coba lagi nanti.")
 
 
@@ -234,11 +234,11 @@ def kb_cancel():
 
 
 WELCOME = (
-    "👋 *Selamat datang di Artemis Bot*\n\n"
+    "👋 **Selamat datang di Artemis Bot**\n\n"
     "Bot pencarian data terpadu. Pilih kategori di bawah, lalu ikuti "
     "petunjuknya.\n\n"
-    "⚠️ _Gunakan hanya untuk keperluan yang sah dan terotorisasi. "
-    "Setiap pencarian tercatat._"
+    "⚠️ __Gunakan hanya untuk keperluan yang sah dan terotorisasi. "
+    "Setiap pencarian tercatat.__"
 )
 
 
@@ -288,7 +288,7 @@ async def main() -> None:
         uid = ev.sender_id
         if not await boleh(uid):
             await ev.respond(
-                "🔒 *Akses ditolak*\n\n"
+                "🔒 **Akses ditolak**\n\n"
                 f"ID Telegram Anda: `{uid}`\n"
                 "Kirim ID ini ke admin untuk didaftarkan.")
             return
@@ -322,7 +322,7 @@ async def main() -> None:
         if data.startswith("cat:"):
             catkey = data[4:]
             emoji, judul, _ = MENU[catkey]
-            await ev.edit(f"{emoji} *{judul}*\n\nPilih jenis data:",
+            await ev.edit(f"{emoji} **{judul}**\n\nPilih jenis data:",
                           buttons=kb_command(catkey))
             return
         if data.startswith("cmd:"):
@@ -330,9 +330,9 @@ async def main() -> None:
             contoh = _contoh(bot, cmd)
             pending[uid] = (bot, cmd)
             await ev.edit(
-                f"✍️ Kirim nilai untuk *{cmd}*\n\n"
+                f"✍️ Kirim nilai untuk **{cmd}**\n\n"
                 f"Contoh: `{contoh}`\n\n"
-                "_Ketik nilainya lalu kirim._",
+                "__Ketik nilainya lalu kirim.__",
                 buttons=kb_cancel())
             return
 
