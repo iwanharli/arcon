@@ -35,6 +35,10 @@ def _rate_limit_seconds(texts: list[str]) -> int | None:
 # Field yang isinya identitas dan bisa dipakai mencocokkan balasan ke permintaan.
 _ID_FIELDS = ("nik", "kk", "nomor", "msisdn", "id_pelanggan", "nopol")
 
+# Nilai ter-mask (mis. "626••••••••••31") tidak bisa dibandingkan dengan input,
+# jadi tidak boleh dipakai untuk menyimpulkan "milik permintaan lain".
+_MASK_RE = re.compile(r"[•*x]", re.IGNORECASE)
+
 
 def _identifier(value: str) -> str | None:
     """Ambil bagian identitas dari input, mis. 'Joko#1' -> None, '3275...' -> digit."""
@@ -59,12 +63,18 @@ def relates_to_request(value: str, texts: list[str], fields) -> bool | None:
         return True                                   # balasan menyebut input kita
 
     records = fields if isinstance(fields, list) else [fields] if fields else []
-    lain = {
-        re.sub(r"\D", "", str(rec[f]))
-        for rec in records for f in _ID_FIELDS
-        if rec.get(f)
-    }
-    lain.discard("")
+    lain = set()
+    for rec in records:
+        for f in _ID_FIELDS:
+            v = rec.get(f)
+            if not v:
+                continue
+            sv = str(v)
+            if _MASK_RE.search(sv):        # ter-mask -> tak bisa dibandingkan, lewati
+                continue
+            d = re.sub(r"\D", "", sv)
+            if d:
+                lain.add(d)
     if lain and ident not in lain:
         return False                                  # identitas di balasan beda semua
     return None
