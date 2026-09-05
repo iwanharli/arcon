@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import uuid
 from typing import Any
 
 from psycopg.types.json import Jsonb
@@ -48,6 +49,12 @@ async def enqueue(conn, bot: str, cmd: str, value: str, *,
 
 
 async def get_job(conn, job_id: str) -> dict | None:
+    # job_id kolomnya UUID; string non-UUID akan menggagalkan query, jadi
+    # divalidasi dulu supaya balasannya "tidak ada" (404), bukan error 500.
+    try:
+        uuid.UUID(str(job_id))
+    except (ValueError, TypeError):
+        return None
     async with conn.cursor() as cur:
         await cur.execute("SELECT * FROM search_jobs WHERE job_id = %s", (job_id,))
         return await cur.fetchone()
