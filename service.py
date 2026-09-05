@@ -123,7 +123,7 @@ async def query(tg, conn, bot: str, cmd: str, value: str, *,
 # lewat antrian internalnya sendiri; jawaban bisa datang menit-menitan setelah
 # ack "Processing...". Karena antrian kita serial, menunggu lebih lama di sini
 # aman — job berikutnya memang harus menunggu giliran.
-FINAL_TIMEOUT = float(__import__("os").getenv("FINAL_TIMEOUT", "240"))
+FINAL_TIMEOUT = float(__import__("os").getenv("FINAL_TIMEOUT", "300"))  # 5 menit
 
 
 async def _ask_and_parse(tg, bot: str, cmd: str, value: str,

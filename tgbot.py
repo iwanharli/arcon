@@ -159,7 +159,7 @@ async def cari(bot: str, cmd: str, value: str, on_update=None) -> dict:
         await on_update(job.get("state"), job.get("queue_position"))
 
     loop = asyncio.get_event_loop()
-    deadline = loop.time() + 270   # sedikit di atas FINAL_TIMEOUT worker (240s)
+    deadline = loop.time() + 330   # sedikit di atas FINAL_TIMEOUT worker (300s)
     last = job
     while loop.time() < deadline:
         # long-poll 8 detik per putaran; kembali lebih cepat kalau sudah selesai
