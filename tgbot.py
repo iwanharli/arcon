@@ -121,11 +121,13 @@ async def touch_seen(conn, tid: int) -> None:
         await cur.execute("UPDATE bot_users SET last_seen_at=now() WHERE telegram_id=%s", (tid,))
 
 
-async def audit(conn, tid: int, bot: str, cmd: str, value: str, status: str) -> None:
+async def audit(conn, tid: int, bot: str, cmd: str, value: str, status: str,
+                username: str | None = None, name: str | None = None) -> None:
     async with conn.cursor() as cur:
         await cur.execute(
-            "INSERT INTO bot_audit (telegram_id,bot,cmd,value,status) VALUES (%s,%s,%s,%s,%s)",
-            (tid, bot, cmd, value, status))
+            "INSERT INTO bot_audit (telegram_id,username,name,bot,cmd,value,status) "
+            "VALUES (%s,%s,%s,%s,%s,%s,%s)",
+            (tid, username, name, bot, cmd, value, status))
 
 
 # --------------------------------------------------------------- panggil API
@@ -151,7 +153,8 @@ def _fetch_media(url_path: str) -> bytes | None:
         return r.read()
 
 
-async def cari(bot: str, cmd: str, value: str, on_update=None) -> dict:
+async def cari(bot: str, cmd: str, value: str, on_update=None,
+               requested_by: str = "tgbot") -> dict:
     """Kirim job ke API lalu tunggu hasil.
 
     Antrian bersifat GLOBAL & serial di sisi API (satu worker, satu-satu).
@@ -159,7 +162,7 @@ async def cari(bot: str, cmd: str, value: str, on_update=None) -> dict:
     antrian ke user selama menunggu.
     """
     job = await asyncio.to_thread(_api_call, "POST", f"/search/{bot}",
-                                  {"cmd": cmd, "value": value, "requested_by": "tgbot"})
+                                  {"cmd": cmd, "value": value, "requested_by": requested_by})
     if job.get("state") == "done":
         return job
     jid = job.get("job_id")
@@ -390,6 +393,12 @@ async def main() -> None:
         bot, cmd = pending.pop(uid)
         value = ev.raw_text.strip()
         judul = f"{cmd} `{value}`"
+        # identitas pencari (untuk audit & requested_by)
+        sender = await ev.get_sender()
+        uname = getattr(sender, "username", None)
+        fullname = " ".join(filter(None, [getattr(sender, "first_name", None),
+                                          getattr(sender, "last_name", None)])) or None
+        siapa = f"tgbot:@{uname}" if uname else f"tgbot:{uid}"
         busy.add(uid)
         tunggu = await ev.respond(f"🔍 Mencari {judul} ...\n__mohon tunggu__")
 
@@ -409,14 +418,15 @@ async def main() -> None:
                     pass
 
         try:
-            hasil = await cari(bot, cmd, value, on_update=progres)
+            hasil = await cari(bot, cmd, value, on_update=progres, requested_by=siapa)
         except (urllib.error.URLError, TimeoutError) as e:
             await tunggu.edit(f"⚠️ Gagal menghubungi server: `{e}`",
                               buttons=kb_after(bot, cmd))
             return
         finally:
             busy.discard(uid)
-        await audit(conn, uid, bot, cmd, value, hasil.get("status", "?"))
+        await audit(conn, uid, bot, cmd, value, hasil.get("status", "?"),
+                    username=uname, name=fullname)
         media = hasil.get("media") or []
         await tunggu.edit(format_hasil(hasil, judul),
                           buttons=kb_after(bot, cmd) if not media else None,
