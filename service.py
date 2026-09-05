@@ -128,13 +128,24 @@ FINAL_TIMEOUT = float(__import__("os").getenv("FINAL_TIMEOUT", "300"))  # 5 meni
 
 async def _ask_and_parse(tg, bot: str, cmd: str, value: str,
                          timeout: float | None, collect: int) -> dict:
-    # Tunggu sampai ada pesan non-ack (jawaban asli), bukan menyerah pada ack.
+    def _accept(msg) -> bool:
+        # Terima pesan non-ack ini sebagai jawaban kita, KECUALI terbukti milik
+        # permintaan lain (identitas di dalamnya bentrok dengan `value`).
+        txt = msg.text or ""
+        records, _ = parser.parse_reply(txt)
+        fields = records[0] if len(records) == 1 else (records or None)
+        return relates_to_request(value, [txt], fields) is not False
+
+    # Tunggu jawaban asli (non-ack) yang benar-benar milik permintaan ini;
+    # jawaban nyasar dilewati sampai jawaban yang tepat datang / timeout.
     replies = await tg.ask(
         bot, f"{cmd} {value}".strip(),
         timeout=timeout if timeout is not None else FINAL_TIMEOUT,
-        wait_final=True, ack_markers=parser.ACK_MARKERS,
+        wait_final=True, ack_markers=parser.ACK_MARKERS, accept=_accept,
     )
-    texts = [m.text for m in replies]
+    # buang pesan yang jelas milik permintaan lain sebelum diklasifikasi
+    texts = [m.text for m in replies
+             if parser.is_ack(m.text) or _accept(m)]
     out = parser.classify(texts)
     out["_texts"] = texts
     return out

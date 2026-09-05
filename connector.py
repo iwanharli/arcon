@@ -56,7 +56,8 @@ class TelegramConnector:
 
     async def ask(self, bot: str, text: str, timeout: float | None = None,
                   collect: int = 1, wait_final: bool = False,
-                  ack_markers: Iterable[str] = ()) -> list[Message]:
+                  ack_markers: Iterable[str] = (),
+                  accept: "Callable[[Message], bool] | None" = None) -> list[Message]:
         """Kirim pesan lalu tunggu balasan bot.
 
         Dua mode:
@@ -83,10 +84,14 @@ class TelegramConnector:
             return any(m in t for m in markers)
 
         async def _handler(event: events.NewMessage.Event) -> None:
-            replies.append(event.message)
+            msg = event.message
+            replies.append(msg)
             if wait_final:
-                # selesai hanya kalau sudah ada pesan non-ack (jawaban asli)
-                if any(not _is_ack(m) for m in replies):
+                # Selesai hanya pada pesan non-ack yang MEMANG milik permintaan
+                # ini. cleojktbot dkk sering mengirim jawaban tidak berurutan;
+                # jawaban milik permintaan lain (accept=False) dilewati supaya
+                # kita terus menunggu jawaban yang benar sampai timeout.
+                if not _is_ack(msg) and (accept is None or accept(msg)):
                     done.set()
             elif len(replies) >= collect:
                 done.set()
