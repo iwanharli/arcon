@@ -24,6 +24,7 @@ from fastapi import Depends, FastAPI, Header, HTTPException, Query
 from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel, Field
 
+import appauth
 import config
 import db
 import jobs
@@ -114,6 +115,66 @@ def _to_response(job: dict, posisi: int | None = None) -> JobResponse:
 async def monitor():
     """Halaman pemantauan command (HTML statis, ambil datanya lewat API)."""
     return FileResponse(os.path.join(os.path.dirname(__file__), "static", "monitor.html"))
+
+
+class LoginReq(BaseModel):
+    username: str
+    password: str
+
+
+class AppUserReq(BaseModel):
+    username: str
+    password: str
+    role: str = Field("user", pattern="^(admin|user)$")
+
+
+class PasswordReq(BaseModel):
+    password: str
+
+
+@app.post("/auth/login", dependencies=[Depends(auth)])
+async def auth_login(req: LoginReq):
+    """Verifikasi login aplikasi ke tabel app_users. Dipanggil server-to-server
+    (mis. backend ArtemisID) dengan X-API-Key."""
+    u = await appauth.verify_login(state["conn"], req.username, req.password)
+    if not u:
+        raise HTTPException(status_code=401, detail="username atau kata sandi salah")
+    return {"ok": True, **u}
+
+
+@app.get("/auth/users", dependencies=[Depends(auth)])
+async def auth_users():
+    return {"ok": True, "users": await appauth.list_users(state["conn"])}
+
+
+@app.post("/auth/users", dependencies=[Depends(auth)])
+async def auth_create(req: AppUserReq):
+    await appauth.create_user(state["conn"], req.username, req.password, req.role)
+    return {"ok": True}
+
+
+@app.post("/auth/users/{username}/password", dependencies=[Depends(auth)])
+async def auth_set_password(username: str, req: PasswordReq):
+    ok = await appauth.set_password(state["conn"], username, req.password)
+    if not ok:
+        raise HTTPException(status_code=404, detail="user tidak ditemukan")
+    return {"ok": True}
+
+
+@app.post("/auth/users/{username}/role", dependencies=[Depends(auth)])
+async def auth_set_role(username: str, role: str = Query(..., pattern="^(admin|user)$")):
+    ok = await appauth.set_role(state["conn"], username, role)
+    if not ok:
+        raise HTTPException(status_code=404, detail="user tidak ditemukan")
+    return {"ok": True}
+
+
+@app.delete("/auth/users/{username}", dependencies=[Depends(auth)])
+async def auth_delete(username: str):
+    ok = await appauth.delete_user(state["conn"], username)
+    if not ok:
+        raise HTTPException(status_code=404, detail="user tidak ditemukan")
+    return {"ok": True}
 
 
 @app.get("/media/{media_id}", dependencies=[Depends(auth)])
