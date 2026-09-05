@@ -140,7 +140,13 @@ def _api_call(method: str, path: str, body: dict | None = None) -> dict:
         return json.load(r)
 
 
-async def cari(bot: str, cmd: str, value: str) -> dict:
+async def cari(bot: str, cmd: str, value: str, on_update=None) -> dict:
+    """Kirim job ke API lalu tunggu hasil.
+
+    Antrian bersifat GLOBAL & serial di sisi API (satu worker, satu-satu).
+    `on_update(state, posisi)` dipanggil berkala untuk memperlihatkan posisi
+    antrian ke user selama menunggu.
+    """
     job = await asyncio.to_thread(_api_call, "POST", f"/search/{bot}",
                                   {"cmd": cmd, "value": value, "requested_by": "tgbot"})
     if job.get("state") == "done":
@@ -148,7 +154,21 @@ async def cari(bot: str, cmd: str, value: str) -> dict:
     jid = job.get("job_id")
     if not jid:
         return job
-    return await asyncio.to_thread(_api_call, "GET", f"/jobs/{jid}?wait=120")
+
+    if on_update:
+        await on_update(job.get("state"), job.get("queue_position"))
+
+    loop = asyncio.get_event_loop()
+    deadline = loop.time() + 180
+    last = job
+    while loop.time() < deadline:
+        # long-poll 8 detik per putaran; kembali lebih cepat kalau sudah selesai
+        last = await asyncio.to_thread(_api_call, "GET", f"/jobs/{jid}?wait=8")
+        if last.get("state") in ("done", "failed"):
+            return last
+        if on_update:
+            await on_update(last.get("state"), last.get("queue_position"))
+    return last
 
 
 # ------------------------------------------------------------ format balasan
@@ -360,8 +380,24 @@ async def main() -> None:
         judul = f"{cmd} `{value}`"
         busy.add(uid)
         tunggu = await ev.respond(f"🔍 Mencari {judul} ...\n__mohon tunggu__")
+
+        last_text = {"v": ""}
+
+        async def progres(state, posisi):
+            if state == "queued" and posisi:
+                teks = (f"⏳ Antre di posisi **{posisi}** ...\n"
+                        f"__pencarian {judul} menunggu giliran__")
+            else:
+                teks = f"🔄 Sedang diproses ...\n__{judul}__"
+            if teks != last_text["v"]:          # hindari edit identik (error Telegram)
+                last_text["v"] = teks
+                try:
+                    await tunggu.edit(teks)
+                except Exception:               # noqa: BLE001
+                    pass
+
         try:
-            hasil = await cari(bot, cmd, value)
+            hasil = await cari(bot, cmd, value, on_update=progres)
         except (urllib.error.URLError, TimeoutError) as e:
             await tunggu.edit(f"⚠️ Gagal menghubungi server: `{e}`",
                               buttons=kb_after(bot, cmd))
