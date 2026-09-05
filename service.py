@@ -119,9 +119,21 @@ async def query(tg, conn, bot: str, cmd: str, value: str, *,
     return {**result, "from_cache": False}
 
 
+# Berapa lama menunggu JAWABAN ASLI (non-ack) dari bot data. Bot memproses
+# lewat antrian internalnya sendiri; jawaban bisa datang menit-menitan setelah
+# ack "Processing...". Karena antrian kita serial, menunggu lebih lama di sini
+# aman — job berikutnya memang harus menunggu giliran.
+FINAL_TIMEOUT = float(__import__("os").getenv("FINAL_TIMEOUT", "240"))
+
+
 async def _ask_and_parse(tg, bot: str, cmd: str, value: str,
                          timeout: float | None, collect: int) -> dict:
-    replies = await tg.ask(bot, f"{cmd} {value}".strip(), collect=collect, timeout=timeout)
+    # Tunggu sampai ada pesan non-ack (jawaban asli), bukan menyerah pada ack.
+    replies = await tg.ask(
+        bot, f"{cmd} {value}".strip(),
+        timeout=timeout if timeout is not None else FINAL_TIMEOUT,
+        wait_final=True, ack_markers=parser.ACK_MARKERS,
+    )
     texts = [m.text for m in replies]
     out = parser.classify(texts)
     out["_texts"] = texts

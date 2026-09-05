@@ -159,7 +159,7 @@ async def cari(bot: str, cmd: str, value: str, on_update=None) -> dict:
         await on_update(job.get("state"), job.get("queue_position"))
 
     loop = asyncio.get_event_loop()
-    deadline = loop.time() + 180
+    deadline = loop.time() + 270   # sedikit di atas FINAL_TIMEOUT worker (240s)
     last = job
     while loop.time() < deadline:
         # long-poll 8 detik per putaran; kembali lebih cepat kalau sudah selesai
@@ -216,8 +216,9 @@ def format_hasil(hasil: dict, judul: str) -> str:
                 "Data tidak ada di sumber, atau format input kurang tepat. "
                 "Coba periksa lagi nilainya.")
     if status == "queue_without_data":
-        return (f"⏳ **Sedang sibuk** — {judul}\n\n"
-                "Sumber data belum membalas. Silakan coba lagi beberapa saat.")
+        return (f"⏳ **Masih diproses** — {judul}\n\n"
+                "Sumber data memproses lebih lama dari biasa. Tekan "
+                "🔁 Cari lagi untuk melanjutkan.")
     return (f"⚠️ **Tidak ada respons** — {judul}\n\n"
             "Sumber data tidak menjawab. Coba lagi nanti.")
 

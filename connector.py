@@ -55,23 +55,40 @@ class TelegramConnector:
     # ---------- read ----------
 
     async def ask(self, bot: str, text: str, timeout: float | None = None,
-                  collect: int = 1) -> list[Message]:
+                  collect: int = 1, wait_final: bool = False,
+                  ack_markers: Iterable[str] = ()) -> list[Message]:
         """Kirim pesan lalu tunggu balasan bot.
 
-        `collect` = jumlah pesan balasan yang ditunggu (bot sering membalas
-        beberapa pesan berturut-turut). Balasan yang datang setelah timeout
-        diabaikan; yang sudah terkumpul tetap dikembalikan.
+        Dua mode:
+        - default: berhenti setelah `collect` pesan terkumpul.
+        - wait_final=True: berhenti begitu ada pesan yang BUKAN ack antrian
+          (mis. "Processing...", "Giliran Anda"). Bot data sering mengirim ack
+          dulu lalu jawaban asli menyusul lama; mode ini menunggu jawaban asli
+          itu, bukan menyerah pada ack. `ack_markers` = frasa penanda ack
+          (lowercase).
+
+        Balasan yang datang setelah timeout diabaikan; yang sudah terkumpul
+        tetap dikembalikan.
         """
         target = config.resolve(bot)
         entity = await self.client.get_entity(target)
         timeout = config.BOT_TIMEOUT if timeout is None else timeout
+        markers = tuple(ack_markers)
 
         replies: list[Message] = []
         done = asyncio.Event()
 
+        def _is_ack(msg: Message) -> bool:
+            t = (msg.text or "").lower()
+            return any(m in t for m in markers)
+
         async def _handler(event: events.NewMessage.Event) -> None:
             replies.append(event.message)
-            if len(replies) >= collect:
+            if wait_final:
+                # selesai hanya kalau sudah ada pesan non-ack (jawaban asli)
+                if any(not _is_ack(m) for m in replies):
+                    done.set()
+            elif len(replies) >= collect:
                 done.set()
 
         self.client.add_event_handler(_handler, events.NewMessage(from_users=entity.id))
