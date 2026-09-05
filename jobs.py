@@ -118,11 +118,12 @@ async def _finish(conn, job_id: str, hasil: dict) -> None:
             """
             UPDATE search_jobs
                SET state = 'done', status = %s, msg = %s, fields = %s,
-                   from_cache = %s, finished_at = now()
+                   media = %s, from_cache = %s, finished_at = now()
              WHERE job_id = %s
             """,
             (hasil["status"], hasil.get("msg"),
              Jsonb(hasil["fields"]) if hasil.get("fields") is not None else None,
+             Jsonb(hasil.get("media")) if hasil.get("media") else None,
              hasil.get("from_cache", False), job_id),
         )
 

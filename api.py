@@ -21,7 +21,7 @@ import os
 from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Query
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel, Field
 
 import config
@@ -90,6 +90,7 @@ class JobResponse(BaseModel):
     from_cache: bool = False
     msg: str | None = None
     fields: object | None = None
+    media: list[str] = []
     error: str | None = None
 
 
@@ -102,6 +103,7 @@ def _to_response(job: dict, posisi: int | None = None) -> JobResponse:
         from_cache=job.get("from_cache", False),
         msg=job.get("msg"),
         fields=job.get("fields"),
+        media=job.get("media") or [],
         error=job.get("error"),
     )
 
@@ -112,6 +114,16 @@ def _to_response(job: dict, posisi: int | None = None) -> JobResponse:
 async def monitor():
     """Halaman pemantauan command (HTML statis, ambil datanya lewat API)."""
     return FileResponse(os.path.join(os.path.dirname(__file__), "static", "monitor.html"))
+
+
+@app.get("/media/{media_id}", dependencies=[Depends(auth)])
+async def media(media_id: str):
+    """Sajikan gambar (foto E-KTP dll) berdasarkan id."""
+    row = await db.get_media(state["conn"], media_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail="media tidak ditemukan")
+    return Response(content=bytes(row["bytes"]), media_type=row["content_type"],
+                    headers={"Cache-Control": "private, max-age=86400"})
 
 
 @app.get("/health")
@@ -151,9 +163,11 @@ async def search(bot: str, req: SearchRequest):
     if not req.force:
         cached = await db.lookup(conn, bot, req.cmd, req.value)
         if cached:
+            media = [f"/media/{i}" for i in (cached.get("media") or [])]
             return JobResponse(
                 job_id="", state="done", status=cached["status"],
                 from_cache=True, msg=cached["msg"], fields=cached["fields"],
+                media=media,
             )
 
     job = await jobs.enqueue(conn, bot, req.cmd, req.value,

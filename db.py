@@ -87,6 +87,39 @@ async def upsert_cache(conn, bot: str, cmd: str, value: str, status: str,
         return (await cur.fetchone())["id"]
 
 
+# ------------------------------------------------------------------- media
+
+async def store_media(conn, data: bytes, content_type: str, *, bot: str, cmd: str,
+                      value: str, source_query_id: int | None = None) -> str:
+    """Simpan satu media, kembalikan id (sha256). Dedup otomatis."""
+    import hashlib
+    mid = hashlib.sha256(data).hexdigest()
+    async with conn.cursor() as cur:
+        await cur.execute(
+            """
+            INSERT INTO media_blobs (id, content_type, bytes, size, bot, cmd, value, source_query_id)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            ON CONFLICT (id) DO NOTHING
+            """,
+            (mid, content_type, data, len(data), bot, cmd, value, source_query_id),
+        )
+    return mid
+
+
+async def get_media(conn, mid: str) -> dict | None:
+    async with conn.cursor() as cur:
+        await cur.execute(
+            "SELECT content_type, bytes FROM media_blobs WHERE id = %s", (mid,))
+        return await cur.fetchone()
+
+
+async def set_cache_media(conn, query_id: int, media_ids: list[str]) -> None:
+    async with conn.cursor() as cur:
+        await cur.execute(
+            "UPDATE bot_query_cache SET media = %s WHERE id = %s",
+            (Jsonb(media_ids), query_id))
+
+
 # ---------------------------------------------------------------- profiles
 
 async def upsert_profile(conn, person: dict, source_query_id: int | None = None) -> int | None:
@@ -196,9 +229,21 @@ def _jsonable(data: dict) -> dict:
 
 async def store_result(conn, bot: str, cmd: str, value: str, status: str,
                        msg: str | None = None, fields: Any = None,
-                       tested_at: datetime | None = None) -> int:
-    """Simpan hasil query: cache mentah + normalisasi ke tabel yang sesuai."""
+                       tested_at: datetime | None = None,
+                       media: list[tuple[bytes, str]] | None = None) -> int:
+    """Simpan hasil query: cache mentah + normalisasi + media.
+
+    `media` = daftar (bytes, content_type) foto yang menyertai jawaban.
+    """
     query_id = await upsert_cache(conn, bot, cmd, value, status, msg, fields, tested_at)
+
+    if media:
+        ids = []
+        for data, ctype in media:
+            ids.append(await store_media(conn, data, ctype, bot=bot, cmd=cmd,
+                                         value=value, source_query_id=query_id))
+        if ids:
+            await set_cache_media(conn, query_id, ids)
 
     if status != "found" or not fields:
         return query_id

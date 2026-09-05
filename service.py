@@ -96,6 +96,7 @@ async def query(tg, conn, bot: str, cmd: str, value: str, *,
                 "status": cached["status"],
                 "msg": cached["msg"],
                 "fields": cached["fields"],
+                "media": _media_urls(cached.get("media")),
                 "from_cache": True,
             }
 
@@ -111,6 +112,7 @@ async def query(tg, conn, bot: str, cmd: str, value: str, *,
             result = await _ask_and_parse(tg, bot, cmd, value, timeout, collect)
 
     texts = result.pop("_texts", [])
+    replies = result.pop("_replies", [])
 
     # Jangan simpan balasan yang ternyata milik permintaan lain (lihat
     # relates_to_request). Ditandai queue_without_data supaya dicoba ulang,
@@ -123,10 +125,25 @@ async def query(tg, conn, bot: str, cmd: str, value: str, *,
             "msg": "balasan yang diterima milik permintaan lain, hasil diabaikan",
             "fields": None,
         }
+        replies = []
+
+    # Unduh foto yang menyertai jawaban (hanya kalau status found).
+    media_blobs = []
+    if result["status"] == "found" and replies:
+        media_blobs = await _collect_media(tg, replies)
 
     await db.store_result(conn, bot, cmd, value, result["status"],
-                          result["msg"], result["fields"])
-    return {**result, "from_cache": False}
+                          result["msg"], result["fields"],
+                          media=media_blobs or None)
+    import hashlib
+    media_urls = _media_urls([hashlib.sha256(b).hexdigest() for b, _ in media_blobs])
+    return {**result, "media": media_urls, "from_cache": False}
+
+
+def _media_urls(ids) -> list[str]:
+    if not ids:
+        return []
+    return [f"/media/{i}" for i in ids]
 
 
 # Berapa lama menunggu JAWABAN ASLI (non-ack) dari bot data. Bot memproses
@@ -134,6 +151,12 @@ async def query(tg, conn, bot: str, cmd: str, value: str, *,
 # ack "Processing...". Karena antrian kita serial, menunggu lebih lama di sini
 # aman — job berikutnya memang harus menunggu giliran.
 FINAL_TIMEOUT = float(__import__("os").getenv("FINAL_TIMEOUT", "300"))  # 5 menit
+
+# Command yang jawabannya bisa disertai foto (E-KTP dsb). Untuk ini kita
+# menunggu sebentar setelah teks jawaban agar pesan foto yang menyusul ikut
+# tertangkap.
+PHOTO_CMDS = {"/foto", "/photo", "/nik", "/bionik", "/kk", "/biokk", "/fr", "/siswa"}
+PHOTO_LINGER = 8.0
 
 
 async def _ask_and_parse(tg, bot: str, cmd: str, value: str,
@@ -146,19 +169,31 @@ async def _ask_and_parse(tg, bot: str, cmd: str, value: str,
         fields = records[0] if len(records) == 1 else (records or None)
         return relates_to_request(value, [txt], fields) is not False
 
+    linger = PHOTO_LINGER if cmd in PHOTO_CMDS else 0
     # Tunggu jawaban asli (non-ack) yang benar-benar milik permintaan ini;
     # jawaban nyasar dilewati sampai jawaban yang tepat datang / timeout.
     replies = await tg.ask(
         bot, f"{cmd} {value}".strip(),
         timeout=timeout if timeout is not None else FINAL_TIMEOUT,
         wait_final=True, ack_markers=parser.ACK_MARKERS, accept=_accept,
+        linger=linger,
     )
     # buang pesan yang jelas milik permintaan lain sebelum diklasifikasi
-    texts = [m.text for m in replies
-             if parser.is_ack(m.text) or _accept(m)]
+    good = [m for m in replies if parser.is_ack(m.text) or _accept(m)]
+    texts = [m.text for m in good]
     out = parser.classify(texts)
     out["_texts"] = texts
+    out["_replies"] = good
     return out
+
+
+async def _collect_media(tg, replies: list) -> list[tuple[bytes, str]]:
+    media = []
+    for m in replies:
+        got = await tg.download_media(m)
+        if got:
+            media.append(got)
+    return media
 
 
 async def query_many(tg, conn, bot: str, cmd: str, values: list[str],

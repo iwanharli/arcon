@@ -130,14 +130,25 @@ async def audit(conn, tid: int, bot: str, cmd: str, value: str, status: str) -> 
 
 # --------------------------------------------------------------- panggil API
 
+def _headers() -> dict:
+    h = {"Content-Type": "application/json"}
+    if API_KEY:
+        h["X-API-Key"] = API_KEY
+    return h
+
+
 def _api_call(method: str, path: str, body: dict | None = None) -> dict:
     data = json.dumps(body).encode() if body is not None else None
-    headers = {"Content-Type": "application/json"}
-    if API_KEY:
-        headers["X-API-Key"] = API_KEY
-    req = urllib.request.Request(f"{API_BASE}{path}", data=data, headers=headers, method=method)
+    req = urllib.request.Request(f"{API_BASE}{path}", data=data, headers=_headers(), method=method)
     with urllib.request.urlopen(req, timeout=140) as r:
         return json.load(r)
+
+
+def _fetch_media(url_path: str) -> bytes | None:
+    """Ambil byte gambar dari API (dipanggil lewat asyncio.to_thread)."""
+    req = urllib.request.Request(f"{API_BASE}{url_path}", headers=_headers())
+    with urllib.request.urlopen(req, timeout=30) as r:
+        return r.read()
 
 
 async def cari(bot: str, cmd: str, value: str, on_update=None) -> dict:
@@ -406,8 +417,21 @@ async def main() -> None:
         finally:
             busy.discard(uid)
         await audit(conn, uid, bot, cmd, value, hasil.get("status", "?"))
+        media = hasil.get("media") or []
         await tunggu.edit(format_hasil(hasil, judul),
-                          buttons=kb_after(bot, cmd), link_preview=False)
+                          buttons=kb_after(bot, cmd) if not media else None,
+                          link_preview=False)
+        # kirim foto (E-KTP dll) kalau ada
+        for i, murl in enumerate(media[:10]):
+            try:
+                blob = await asyncio.to_thread(_fetch_media, murl)
+                if blob:
+                    last = (i == len(media[:10]) - 1)
+                    await client.send_file(
+                        uid, blob, force_document=False,
+                        buttons=kb_after(bot, cmd) if last else None)
+            except Exception as e:  # noqa: BLE001
+                log.warning("gagal kirim media: %s", e)
 
     log.info("siap menerima pesan")
     await client.run_until_disconnected()

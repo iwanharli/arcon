@@ -57,7 +57,8 @@ class TelegramConnector:
     async def ask(self, bot: str, text: str, timeout: float | None = None,
                   collect: int = 1, wait_final: bool = False,
                   ack_markers: Iterable[str] = (),
-                  accept: "Callable[[Message], bool] | None" = None) -> list[Message]:
+                  accept: "Callable[[Message], bool] | None" = None,
+                  linger: float = 0) -> list[Message]:
         """Kirim pesan lalu tunggu balasan bot.
 
         Dua mode:
@@ -105,12 +106,39 @@ class TelegramConnector:
             except asyncio.TimeoutError:
                 log.warning("timeout %.0fs menunggu balasan %s (dapat %d)",
                             timeout, target, len(replies))
+            # Foto (mis. E-KTP) sering menyusul sebagai pesan terpisah setelah
+            # teks jawaban. Tunggu sebentar untuk menangkapnya.
+            if linger > 0 and done.is_set():
+                await asyncio.sleep(linger)
         finally:
             self.client.remove_event_handler(_handler)
 
         for m in replies:
             log.info("<- %s: %s", target, (m.text or "").replace("\n", " ")[:200])
         return replies
+
+    async def download_media(self, msg: Message) -> tuple[bytes, str] | None:
+        """Unduh media (foto) dari sebuah pesan. Kembalikan (bytes, content_type)
+        atau None kalau pesan tak bermedia / bukan foto."""
+        if msg is None or msg.media is None:
+            return None
+        # hanya foto & dokumen gambar; abaikan preview webpage
+        from telethon.tl.types import MessageMediaPhoto, MessageMediaDocument
+        if not isinstance(msg.media, (MessageMediaPhoto, MessageMediaDocument)):
+            return None
+        try:
+            data = await self.client.download_media(msg, file=bytes)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("gagal unduh media: %s", exc)
+            return None
+        if not data:
+            return None
+        ctype = "image/jpeg"
+        if isinstance(msg.media, MessageMediaDocument) and msg.media.document:
+            mt = getattr(msg.media.document, "mime_type", "") or ""
+            if mt:
+                ctype = mt
+        return data, ctype
 
     async def ask_all(self, text: str, bots: Iterable[str] | None = None,
                       **kwargs) -> dict[str, list[Message]]:
