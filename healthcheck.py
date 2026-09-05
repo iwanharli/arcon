@@ -49,10 +49,10 @@ def _headers() -> dict:
 def _post_search(bot: str, cmd: str, value: str) -> str:
     """Kirim job force ke API, kembalikan job_id."""
     body = json.dumps({
-        "bot": bot, "cmd": cmd, "value": value,
+        "cmd": cmd, "value": value,
         "requested_by": "healthcheck", "priority": -10, "force": True,
     }).encode()
-    req = urllib.request.Request(f"{API_BASE}/search", data=body,
+    req = urllib.request.Request(f"{API_BASE}/search/{bot}", data=body,
                                  headers=_headers(), method="POST")
     with urllib.request.urlopen(req, timeout=30) as r:
         return json.load(r)["job_id"]
@@ -61,7 +61,7 @@ def _post_search(bot: str, cmd: str, value: str) -> str:
 def _wait_result(job_id: str) -> dict:
     """Long-poll job sampai selesai."""
     req = urllib.request.Request(
-        f"{API_BASE}/search/{job_id}?wait={POLL_TIMEOUT}", headers=_headers())
+        f"{API_BASE}/jobs/{job_id}?wait={POLL_TIMEOUT}", headers=_headers())
     with urllib.request.urlopen(req, timeout=POLL_TIMEOUT + 15) as r:
         return json.load(r)
 

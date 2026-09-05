@@ -72,7 +72,9 @@ def auth(x_api_key: str | None = Header(default=None)) -> None:
 # --------------------------------------------------------------- schemas
 
 class SearchRequest(BaseModel):
-    bot: str = Field(..., examples=["bot1"])
+    # `bot` tidak lagi di body — dibedakan lewat path /search/{bot}. Ini perlu
+    # karena 7 command (/nik, /kk, /reg, /nama, /nohp, /bpjs, /guru) ada di dua
+    # bot sekaligus, jadi command saja tidak cukup untuk menentukan tujuan.
     cmd: str = Field(..., examples=["/nik"])
     value: str = Field(..., min_length=1, examples=["3201010101010001"])
     requested_by: str | None = Field(None, description="identitas user/modul di Artemis")
@@ -132,34 +134,36 @@ async def list_commands():
     return out
 
 
-@app.post("/search", response_model=JobResponse, dependencies=[Depends(auth)])
-async def search(req: SearchRequest):
-    """Terima input pencarian dari Artemis.
+@app.post("/search/{bot}", response_model=JobResponse, dependencies=[Depends(auth)])
+async def search(bot: str, req: SearchRequest):
+    """Terima input pencarian dari Artemis untuk bot tertentu (lewat path).
+
+    Contoh: POST /search/bot1  body {"cmd":"/nik","value":"..."}
 
     Kalau sudah ada di cache, hasilnya langsung dikembalikan (tanpa antrian).
     Kalau belum, job masuk antrian dan diproses worker satu per satu.
     """
     conn = state["conn"]
 
-    if (err := jobs.validate(req.bot, req.cmd)):
+    if (err := jobs.validate(bot, req.cmd)):
         raise HTTPException(status_code=400, detail=err)
 
     if not req.force:
-        cached = await db.lookup(conn, req.bot, req.cmd, req.value)
+        cached = await db.lookup(conn, bot, req.cmd, req.value)
         if cached:
             return JobResponse(
                 job_id="", state="done", status=cached["status"],
                 from_cache=True, msg=cached["msg"], fields=cached["fields"],
             )
 
-    job = await jobs.enqueue(conn, req.bot, req.cmd, req.value,
+    job = await jobs.enqueue(conn, bot, req.cmd, req.value,
                              requested_by=req.requested_by, priority=req.priority,
                              force=req.force)
     posisi = await jobs.queue_position(conn, str(job["job_id"]))
     return _to_response(job, posisi)
 
 
-@app.get("/search/{job_id}", response_model=JobResponse, dependencies=[Depends(auth)])
+@app.get("/jobs/{job_id}", response_model=JobResponse, dependencies=[Depends(auth)])
 async def get_search(job_id: str,
                      wait: float = Query(0, ge=0, le=300,
                                          description="detik menunggu sampai selesai (long-poll)")):
