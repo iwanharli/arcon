@@ -1,0 +1,19 @@
+# ── Kredensial & data sensitif — JANGAN pernah di-commit ──
+.env
+*.session
+*.session-journal
+# tests/values.py berisi NIK/nama/nomor HP asli
+tests/values.py
+# tests/results/ berisi hasil query data pribadi
+tests/results/
+logs/
+
+# ── Lingkungan & cache ──
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# ── OS / editor ──
+.DS_Store
