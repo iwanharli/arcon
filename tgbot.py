@@ -89,7 +89,8 @@ FIELD_LABEL = {
     "cluster": ("📍", "Area"), "district": ("🏙️", "Distrik"),
 }
 
-pending: dict[int, tuple] = {}
+pending: dict[int, tuple] = {}   # user_id -> (bot, cmd) yang menunggu nilai
+busy: set[int] = set()           # user_id yang pencariannya sedang jalan
 
 
 # --------------------------------------------------------------- allowlist
@@ -326,6 +327,9 @@ async def main() -> None:
                           buttons=kb_command(catkey))
             return
         if data.startswith("cmd:"):
+            if uid in busy:
+                await ev.answer("⏳ Tunggu pencarian sebelumnya selesai dulu.", alert=True)
+                return
             _, bot, cmd = data.split(":", 2)
             contoh = _contoh(bot, cmd)
             pending[uid] = (bot, cmd)
@@ -343,6 +347,10 @@ async def main() -> None:
         uid = ev.sender_id
         if not await boleh(uid):
             return
+        if uid in busy:
+            await ev.respond("⏳ Masih memproses pencarian sebelumnya. "
+                             "Mohon tunggu sampai selesai dulu.")
+            return
         if uid not in pending:
             await ev.respond("Ketik /start untuk membuka menu 📲")
             return
@@ -350,13 +358,16 @@ async def main() -> None:
         bot, cmd = pending.pop(uid)
         value = ev.raw_text.strip()
         judul = f"{cmd} `{value}`"
-        tunggu = await ev.respond(f"🔍 Mencari {judul} ...\n_mohon tunggu_")
+        busy.add(uid)
+        tunggu = await ev.respond(f"🔍 Mencari {judul} ...\n__mohon tunggu__")
         try:
             hasil = await cari(bot, cmd, value)
         except (urllib.error.URLError, TimeoutError) as e:
             await tunggu.edit(f"⚠️ Gagal menghubungi server: `{e}`",
                               buttons=kb_after(bot, cmd))
             return
+        finally:
+            busy.discard(uid)
         await audit(conn, uid, bot, cmd, value, hasil.get("status", "?"))
         await tunggu.edit(format_hasil(hasil, judul),
                           buttons=kb_after(bot, cmd), link_preview=False)
