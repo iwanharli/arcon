@@ -77,6 +77,7 @@ class SearchRequest(BaseModel):
     value: str = Field(..., min_length=1, examples=["3201010101010001"])
     requested_by: str | None = Field(None, description="identitas user/modul di Artemis")
     priority: int = Field(0, description="makin besar makin didahulukan")
+    force: bool = Field(False, description="paksa hit Telegram walau ada di cache (dipakai healthcheck)")
 
 
 class JobResponse(BaseModel):
@@ -143,15 +144,17 @@ async def search(req: SearchRequest):
     if (err := jobs.validate(req.bot, req.cmd)):
         raise HTTPException(status_code=400, detail=err)
 
-    cached = await db.lookup(conn, req.bot, req.cmd, req.value)
-    if cached:
-        return JobResponse(
-            job_id="", state="done", status=cached["status"],
-            from_cache=True, msg=cached["msg"], fields=cached["fields"],
-        )
+    if not req.force:
+        cached = await db.lookup(conn, req.bot, req.cmd, req.value)
+        if cached:
+            return JobResponse(
+                job_id="", state="done", status=cached["status"],
+                from_cache=True, msg=cached["msg"], fields=cached["fields"],
+            )
 
     job = await jobs.enqueue(conn, req.bot, req.cmd, req.value,
-                             requested_by=req.requested_by, priority=req.priority)
+                             requested_by=req.requested_by, priority=req.priority,
+                             force=req.force)
     posisi = await jobs.queue_position(conn, str(job["job_id"]))
     return _to_response(job, posisi)
 

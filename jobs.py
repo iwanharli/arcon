@@ -28,16 +28,21 @@ JEDA_ANTAR_JOB = 10
 # --------------------------------------------------------------- enqueue
 
 async def enqueue(conn, bot: str, cmd: str, value: str, *,
-                  requested_by: str | None = None, priority: int = 0) -> dict:
-    """Masukkan job ke antrian. Kembalikan barisnya."""
+                  requested_by: str | None = None, priority: int = 0,
+                  force: bool = False) -> dict:
+    """Masukkan job ke antrian. Kembalikan barisnya.
+
+    force=True memaksa worker menembak Telegram walau nilainya ada di cache
+    (dipakai healthcheck).
+    """
     async with conn.cursor() as cur:
         await cur.execute(
             """
-            INSERT INTO search_jobs (bot, cmd, value, requested_by, priority)
-            VALUES (%s, %s, %s, %s, %s)
+            INSERT INTO search_jobs (bot, cmd, value, requested_by, priority, force)
+            VALUES (%s, %s, %s, %s, %s, %s)
             RETURNING *
             """,
-            (bot, cmd, value, requested_by, priority),
+            (bot, cmd, value, requested_by, priority, force),
         )
         return await cur.fetchone()
 
@@ -140,7 +145,8 @@ async def run_worker(tg, conn, *, poll_interval: float = 2.0,
         jid = str(job["job_id"])
         log.info("proses job %s: %s %s %s", jid, job["bot"], job["cmd"], job["value"])
         try:
-            hasil = await service.query(tg, conn, job["bot"], job["cmd"], job["value"])
+            hasil = await service.query(tg, conn, job["bot"], job["cmd"], job["value"],
+                                        force=job.get("force", False))
             await _finish(conn, jid, hasil)
             log.info("job %s selesai: %s (cache=%s)", jid, hasil["status"], hasil["from_cache"])
 
