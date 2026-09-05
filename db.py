@@ -87,6 +87,37 @@ async def upsert_cache(conn, bot: str, cmd: str, value: str, status: str,
         return (await cur.fetchone())["id"]
 
 
+# -------------------------------------------------------- app_sessions (riwayat)
+
+async def app_session_upsert(conn, sid: str, username: str, data: dict) -> None:
+    async with conn.cursor() as cur:
+        await cur.execute(
+            """
+            INSERT INTO app_sessions (id, username, data, updated_at)
+            VALUES (%s, %s, %s, now())
+            ON CONFLICT (id) DO UPDATE SET data = EXCLUDED.data, updated_at = now()
+            """,
+            (sid, username, Jsonb(data)),
+        )
+
+
+async def app_session_list(conn, username: str) -> list[dict]:
+    async with conn.cursor() as cur:
+        await cur.execute(
+            "SELECT data FROM app_sessions WHERE username = %s ORDER BY updated_at DESC",
+            (username,))
+        return [r["data"] for r in await cur.fetchall()]
+
+
+async def app_session_get(conn, sid: str, username: str) -> dict | None:
+    async with conn.cursor() as cur:
+        await cur.execute(
+            "SELECT data FROM app_sessions WHERE id = %s AND username = %s",
+            (sid, username))
+        row = await cur.fetchone()
+    return row["data"] if row else None
+
+
 # ------------------------------------------------------------------- media
 
 async def store_media(conn, data: bytes, content_type: str, *, bot: str, cmd: str,

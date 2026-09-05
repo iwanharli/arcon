@@ -177,6 +177,31 @@ async def auth_delete(username: str):
     return {"ok": True}
 
 
+class SessionUpsertReq(BaseModel):
+    id: str
+    user: str
+    data: dict
+
+
+@app.post("/app/sessions/upsert", dependencies=[Depends(auth)])
+async def app_session_upsert(req: SessionUpsertReq):
+    await db.app_session_upsert(state["conn"], req.id, req.user, req.data)
+    return {"ok": True}
+
+
+@app.get("/app/sessions", dependencies=[Depends(auth)])
+async def app_session_list(user: str = Query(...)):
+    return {"ok": True, "items": await db.app_session_list(state["conn"], user)}
+
+
+@app.get("/app/sessions/{sid}", dependencies=[Depends(auth)])
+async def app_session_get(sid: str, user: str = Query(...)):
+    data = await db.app_session_get(state["conn"], sid, user)
+    if data is None:
+        raise HTTPException(status_code=404, detail="sesi tidak ditemukan")
+    return {"ok": True, "session": data}
+
+
 @app.get("/media/{media_id}", dependencies=[Depends(auth)])
 async def media(media_id: str):
     """Sajikan gambar (foto E-KTP dll) berdasarkan id."""
