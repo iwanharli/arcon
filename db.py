@@ -118,6 +118,13 @@ async def app_session_get(conn, sid: str, username: str) -> dict | None:
     return row["data"] if row else None
 
 
+async def app_session_clear(conn, username: str) -> int:
+    """Hapus semua sesi milik user. Kembalikan jumlah baris terhapus."""
+    async with conn.cursor() as cur:
+        await cur.execute("DELETE FROM app_sessions WHERE username = %s", (username,))
+        return cur.rowcount
+
+
 # ------------------------------------------------------------------- media
 
 async def store_media(conn, data: bytes, content_type: str, *, bot: str, cmd: str,

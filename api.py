@@ -202,6 +202,13 @@ async def app_session_get(sid: str, user: str = Query(...)):
     return {"ok": True, "session": data}
 
 
+@app.delete("/app/sessions", dependencies=[Depends(auth)])
+async def app_session_clear(user: str = Query(...)):
+    """Hapus semua sesi milik user (kosongkan riwayat)."""
+    n = await db.app_session_clear(state["conn"], user)
+    return {"ok": True, "deleted": n}
+
+
 @app.get("/media/{media_id}", dependencies=[Depends(auth)])
 async def media(media_id: str):
     """Sajikan gambar (foto E-KTP dll) berdasarkan id."""
