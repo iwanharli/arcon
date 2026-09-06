@@ -39,42 +39,76 @@ async def main():
 asyncio.run(main())
 ```
 
-## API untuk aplikasi Artemis
+## API untuk aplikasi (ArtemisID dsb.)
 
 ```bash
-psql -d db_artemis -f migrations/002_search_jobs.sql
-uvicorn api:app --host 127.0.0.1 --port 8000
+# terapkan semua migrasi (001..009), lalu:
+for f in migrations/*.sql; do psql -d db_artemis -f "$f"; done
+uvicorn api:app --host 127.0.0.1 --port 8765
 ```
 
 Satu akun Telegram hanya bisa melayani satu percakapan efektif pada satu waktu,
 jadi permintaan **tidak** diproses paralel: API menerima input, menaruhnya di
-antrian, dan satu worker mengerjakannya berurutan.
+antrian **global serial**, dan satu worker mengerjakannya berurutan.
+
+Semua endpoint (kecuali `GET /health` dan `/monitor`) wajib header
+`X-API-Key` (nilai dari `API_KEY` di `.env`). `bot` ditentukan lewat **path**
+(`/search/{bot}`), bukan body — karena beberapa command (mis. `/nik`, `/kk`)
+ada di lebih dari satu bot.
 
 ```
-POST /search  {"bot":"bot1","cmd":"/nik","value":"327...","requested_by":"artemis-web"}
+POST /search/bot1  {"cmd":"/nik","value":"327...","requested_by":"artemisid:admin"}
 
-  sudah ada di cache -> {"state":"done","status":"found","from_cache":true,"fields":{...}}
+  sudah ada di cache -> {"state":"done","status":"found","from_cache":true,"fields":{...},"media":[...]}
   belum ada          -> {"job_id":"1b1b...","state":"queued","queue_position":3}
 
-GET /search/{job_id}            -> pantau statusnya
-GET /search/{job_id}?wait=120   -> long-poll, tunggu sampai selesai (maks 300 detik)
+GET /jobs/{job_id}          -> pantau statusnya
+GET /jobs/{job_id}?wait=120 -> long-poll, tunggu selesai (maks 300 detik)
 ```
 
+### Pencarian & data
 | Endpoint | Kegunaan |
 |---|---|
-| `POST /search` | kirim pencarian (cache dulu, kalau tidak ada baru masuk antrian) |
-| `GET /search/{job_id}` | ambil status/hasil, opsional `?wait=` untuk long-poll |
+| `POST /search/{bot}` | kirim pencarian (cache dulu; kalau tidak ada masuk antrian). Body: `cmd`, `value`, opsional `requested_by`, `priority`, `force` |
+| `GET /jobs/{job_id}` | ambil status/hasil, opsional `?wait=` untuk long-poll |
 | `GET /queue` | isi antrian saat ini |
-| `GET /commands` | daftar command yang tersedia per bot |
+| `GET /commands` | daftar command tersedia per bot |
 | `GET /profiles/{nik}` | profil dari database, tanpa menyentuh Telegram |
-| `GET /health` | cek API + ringkasan antrian |
+| `GET /media/{id}` | ambil gambar (foto E-KTP dll); id dari field `media` hasil |
+| `GET /health` | cek API + ringkasan antrian (tanpa API key) |
+| `GET /health/commands` | hasil pengecekan command harian |
+| `GET /monitor` | halaman pemantauan command (HTML) |
 
-`state` job: `queued` → `running` → `done`/`failed`. `status` hasil memakai 4
-nilai yang sama dengan tabel cache (`found`, `not_found`, `queue_without_data`,
-`no_response`). Isi `API_KEY` di `.env` kalau mau mewajibkan header
-`X-API-Key`.
+### Login aplikasi (tabel `app_users`, role admin/user)
+| Endpoint | Kegunaan |
+|---|---|
+| `POST /auth/login` | verifikasi `{username,password}` → `{ok, username, role}` atau 401 |
+| `GET /auth/users` | daftar user |
+| `POST /auth/users` | buat/timpa user `{username,password,role}` |
+| `POST /auth/users/{u}/password` | ganti sandi `{password}` |
+| `POST /auth/users/{u}/role?role=admin\|user` | ubah role |
+| `DELETE /auth/users/{u}` | hapus user |
 
-Prioritas: kirim `"priority": 10` untuk menyalip antrian (default `0`).
+Kelola cepat dari server: `python manage_users.py add <user> <pass> [admin|user]`
+(juga `list`, `passwd`, `role`, `disable`, `enable`, `del`). Password di-hash
+PBKDF2-HMAC-SHA256.
+
+### Riwayat pencarian aplikasi per user (tabel `app_sessions`)
+| Endpoint | Kegunaan |
+|---|---|
+| `POST /app/sessions/upsert` | simpan/perbarui sesi `{id,user,data}` |
+| `GET /app/sessions?user=` | daftar sesi milik user |
+| `GET /app/sessions/{id}?user=` | detail satu sesi |
+
+`state` job: `queued` → `running` → `done`/`failed`. `status` hasil: `found`,
+`not_found`, `queue_without_data`, `no_response`. Prioritas: `"priority": 10`
+untuk menyalip antrian (default `0`). `"force": true` memaksa hit bot walau ada
+di cache (dipakai healthcheck).
+
+### Siapa yang mencari (audit)
+- `search_jobs.requested_by` — identitas pemanggil: `artemisid:<user>` atau
+  `tgbot:@<username>`.
+- `bot_audit` — pencarian lewat bot Telegram: `telegram_id`, `username`, `name`.
 
 ## Pengecekan command berkala (harian)
 
