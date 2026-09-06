@@ -113,6 +113,23 @@ async def query(tg, conn, bot: str, cmd: str, value: str, *,
                 "from_cache": True,
             }
 
+    # /nohp: relasi NIK -> nomor sudah tersimpan dari /reg di profile_phones.
+    # Cek DB dulu supaya taktis tidak bergantung ke bot (yang bisa fallback
+    # ke biodata saat NIK tidak punya nomor terdaftar di bot).
+    if cmd == "/nohp" and not force:
+        nik = _identifier(value)
+        if nik:
+            phones = await db.phones_by_nik(conn, nik)
+            if phones:
+                log.info("nohp dari profile_phones untuk %s (%d nomor)", nik, len(phones))
+                return {
+                    "status": "found",
+                    "msg": None,
+                    "fields": phones if len(phones) > 1 else phones[0],
+                    "media": [],
+                    "from_cache": True,
+                }
+
     result = await _ask_and_parse(tg, bot, cmd, value, timeout, collect)
 
     # Rate limit itu kondisi sementara — tunggu lalu coba sekali lagi, jangan

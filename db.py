@@ -220,6 +220,29 @@ async def insert_phone(conn, phone: dict, source_query_id: int | None = None) ->
         )
 
 
+async def phones_by_nik(conn, nik: str) -> list[dict]:
+    """Ambil nomor HP terdaftar untuk NIK (relasi yang disimpan /reg)."""
+    if not nik:
+        return []
+    async with conn.cursor() as cur:
+        await cur.execute(
+            "SELECT nik, msisdn, operator, registered_at FROM profile_phones "
+            "WHERE nik = %s ORDER BY registered_at DESC NULLS LAST",
+            (nik,),
+        )
+        rows = await cur.fetchall()
+    out = []
+    for r in rows:
+        reg = r.get("registered_at")
+        out.append({
+            "nik": r.get("nik"),
+            "nomor": r.get("msisdn"),
+            "operator": r.get("operator"),
+            "register": reg.isoformat() if hasattr(reg, "isoformat") else reg,
+        })
+    return out
+
+
 async def insert_vehicle(conn, vehicle: dict, source_query_id: int | None = None) -> None:
     if not any(vehicle.get(k) for k in ("nopol", "nomor_mesin", "nomor_rangka")):
         return
