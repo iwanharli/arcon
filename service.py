@@ -127,10 +127,17 @@ async def query(tg, conn, bot: str, cmd: str, value: str, *,
         }
         replies = []
 
-    # Unduh foto yang menyertai jawaban (hanya kalau status found).
+    # Unduh foto yang menyertai jawaban. Untuk command foto (E-KTP dsb.) foto
+    # itu sendiri adalah hasilnya — kumpulkan walau teks balasan kosong/tak
+    # ter-parse (classify mengembalikan no_response/not_found untuk balasan
+    # foto tanpa caption).
     media_blobs = []
-    if result["status"] == "found" and replies:
+    if replies:
         media_blobs = await _collect_media(tg, replies)
+        if media_blobs and result["status"] != "found" and cmd in PHOTO_CMDS:
+            result = {"status": "found",
+                      "msg": result.get("msg") or "Foto ditemukan.",
+                      "fields": result.get("fields")}
 
     await db.store_result(conn, bot, cmd, value, result["status"],
                           result["msg"], result["fields"],
