@@ -50,6 +50,11 @@ def _identifier(value: str) -> str | None:
 # Command yang jawaban wajibnya adalah record nomor HP (bukan biodata).
 PHONE_CMDS = {"/nohp", "/reg"}
 
+# Command kartu keluarga: inputnya No.KK, tapi balasannya cuma NIK tiap anggota
+# (No.KK tidak di-echo). relates_to_request tak bisa mencocokkan identitas ke
+# No.KK, jadi untuk command ini balasan family card diterima tanpa ditolak.
+KK_CMDS = {"/kk", "/biokk"}
+
 
 def _has_phone_field(fields) -> bool:
     """True kalau fields (hasil parse) memuat kolom nomor/msisdn."""
@@ -60,7 +65,7 @@ def _has_phone_field(fields) -> bool:
     return False
 
 
-def relates_to_request(value: str, texts: list[str], fields) -> bool | None:
+def relates_to_request(value: str, texts: list[str], fields, cmd: str | None = None) -> bool | None:
     """Apakah balasan ini benar-benar jawaban untuk `value`?
 
     True  = cocok, False = jelas milik permintaan lain, None = tak bisa dipastikan.
@@ -88,7 +93,13 @@ def relates_to_request(value: str, texts: list[str], fields) -> bool | None:
             d = re.sub(r"\D", "", sv)
             if d:
                 lain.add(d)
-    if lain and ident not in lain:
+    if not lain:
+        return None
+    if cmd in KK_CMDS:
+        # Balasan /kk & /biokk = kartu keluarga (banyak NIK anggota), tidak
+        # menyebut No.KK input — tak bisa diverifikasi ke No.KK, terima saja.
+        return None
+    if ident not in lain:
         return False                                  # identitas di balasan beda semua
     return None
 
@@ -147,7 +158,7 @@ async def query(tg, conn, bot: str, cmd: str, value: str, *,
     # Jangan simpan balasan yang ternyata milik permintaan lain (lihat
     # relates_to_request). Ditandai queue_without_data supaya dicoba ulang,
     # bukan found — kalau tidak, data orang lain masuk ke profil kita.
-    if result["status"] == "found" and relates_to_request(value, texts, result["fields"]) is False:
+    if result["status"] == "found" and relates_to_request(value, texts, result["fields"], cmd) is False:
         log.warning("balasan tidak cocok dengan permintaan %s %s %s — diabaikan",
                     bot, cmd, value)
         result = {
@@ -212,7 +223,7 @@ async def _ask_and_parse(tg, bot: str, cmd: str, value: str,
         txt = msg.text or ""
         records, _ = parser.parse_reply(txt)
         fields = records[0] if len(records) == 1 else (records or None)
-        return relates_to_request(value, [txt], fields) is not False
+        return relates_to_request(value, [txt], fields, cmd) is not False
 
     linger = PHOTO_LINGER if cmd in PHOTO_CMDS else 0
     # Tunggu jawaban asli (non-ack) yang benar-benar milik permintaan ini;
