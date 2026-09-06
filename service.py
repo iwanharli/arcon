@@ -47,6 +47,19 @@ def _identifier(value: str) -> str | None:
     return digits if len(digits) >= 8 else None
 
 
+# Command yang jawaban wajibnya adalah record nomor HP (bukan biodata).
+PHONE_CMDS = {"/nohp", "/reg"}
+
+
+def _has_phone_field(fields) -> bool:
+    """True kalau fields (hasil parse) memuat kolom nomor/msisdn."""
+    records = fields if isinstance(fields, list) else ([fields] if fields else [])
+    for rec in records:
+        if isinstance(rec, dict) and (rec.get("nomor") or rec.get("msisdn")):
+            return True
+    return False
+
+
 def relates_to_request(value: str, texts: list[str], fields) -> bool | None:
     """Apakah balasan ini benar-benar jawaban untuk `value`?
 
@@ -125,6 +138,14 @@ async def query(tg, conn, bot: str, cmd: str, value: str, *,
             "msg": "balasan yang diterima milik permintaan lain, hasil diabaikan",
             "fields": None,
         }
+        replies = []
+
+    # /nohp & /reg wajib balas record nomor. Bot kadang fallback ke biodata
+    # (tanpa kolom nomor) kalau NIK tidak punya nomor terdaftar — itu bukan
+    # hasil, tandai not_found supaya ArtemisID tidak menampilkan biodata.
+    if result["status"] == "found" and cmd in PHONE_CMDS and not _has_phone_field(result["fields"]):
+        log.warning("%s %s balas tanpa kolom nomor — anggap tidak ditemukan", bot, cmd)
+        result = {"status": "not_found", "msg": "Nomor tidak ditemukan.", "fields": None}
         replies = []
 
     # Unduh foto yang menyertai jawaban. Untuk command foto (E-KTP dsb.) foto
