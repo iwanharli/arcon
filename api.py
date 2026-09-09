@@ -30,6 +30,7 @@ import appauth
 import config
 import db
 import jobs
+import normalize as N
 import routes
 from connector import TelegramConnector
 
@@ -92,6 +93,9 @@ class JobResponse(BaseModel):
     queue_position: int | None = None
     from_cache: bool = False
     msg: str | None = None
+    # Nama field diseragamkan lewat normalize.rapikan_nama_field() sebelum
+    # dikirim, supaya cocok dengan `atribut` di GET /commands dan
+    # docs/skema.json. Nilainya tidak diubah.
     fields: object | None = None
     media: list[str] = []
     error: str | None = None
@@ -105,7 +109,7 @@ def _to_response(job: dict, posisi: int | None = None) -> JobResponse:
         queue_position=posisi if job["state"] == "queued" else None,
         from_cache=job.get("from_cache", False),
         msg=job.get("msg"),
-        fields=job.get("fields"),
+        fields=N.rapikan_nama_field(job.get("fields")),
         media=job.get("media") or [],
         error=job.get("error"),
     )
@@ -234,7 +238,7 @@ async def app_cached(bot: str = Query(...), cmd: str = Query(...), value: str = 
         "found": True,
         "status": row["status"],
         "msg": row.get("msg"),
-        "fields": row.get("fields"),
+        "fields": N.rapikan_nama_field(row.get("fields")),
         "media": media,
     }
 
@@ -328,7 +332,8 @@ async def search(bot: str, req: SearchRequest):
             media = [f"/media/{i}" for i in (cached.get("media") or [])]
             return JobResponse(
                 job_id="", state="done", status=cached["status"],
-                from_cache=True, msg=cached["msg"], fields=cached["fields"],
+                from_cache=True, msg=cached["msg"],
+                fields=N.rapikan_nama_field(cached["fields"]),
                 media=media,
             )
 
