@@ -92,8 +92,14 @@ ROUTES: dict[tuple[str, str], Route] = {
     #     situ dijawab "Proses pengenalan wajah dibatalkan".
     #   FR SOCIAL MEDIA   -> penelusuran wajah di media sosial, mengembalikan
     #     daftar situs tempat wajah itu muncul.
+    # FACE RECOGNITION butuh EMPAT langkah: menu -> kirim foto -> pilih mode
+    # -> hasil. Mode dicocokkan lewat TEKS tombolnya, bukan callback data,
+    # supaya tidak bergantung penamaan internal bot.
+    #
+    # Botnya menawarkan tiga mode (Deep / Quick / Multiple Match); yang dipakai
+    # Artemis hanya Quick Match, jadi hanya itu yang dirutekan.
     ("bot1", "/fr"): Route(N.normalize_person, "records", "face", False,
-                           "FACE RECOGNITION", None, True),
+                           "FACE RECOGNITION", "Quick Match", True),
     ("bot1", "/frsocmed"): Route(N.normalize_person, "records", "face_socmed", False,
                                  "\U0001F525 FR SOCIAL MEDIA", None, True),
 
