@@ -496,10 +496,15 @@ class TelegramConnector:
                 return False
             return any(p in t for p in self.PROMPT_MARKERS)
 
+        def _siap(m: Message) -> bool:
+            # FACE RECOGNITION menjawab dengan FOTO contoh, tanpa kalimat
+            # ajakan. Jadi pesan bermedia juga dianggap tanda "siap menerima".
+            return _is_prompt(m) or m.media is not None
+
         prompts = await self.ask(bot, menu, timeout=prompt_timeout, wait_final=True,
-                                 ack_markers=markers, accept=_is_prompt)
+                                 ack_markers=markers, accept=_siap)
         self._pastikan_kuota(bot, menu, prompts)
-        if not any(_is_prompt(m) for m in prompts):
+        if not any(_siap(m) for m in prompts):
             log.warning("menu %r tidak meminta berkas; foto tetap dikirim", menu)
 
         berkas = io.BytesIO(data)
