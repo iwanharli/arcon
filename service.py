@@ -35,7 +35,25 @@ def _rate_limit_seconds(texts: list[str]) -> int | None:
 
 
 # Field yang isinya identitas dan bisa dipakai mencocokkan balasan ke permintaan.
-_ID_FIELDS = ("nik", "kk", "nomor", "msisdn", "id_pelanggan", "nopol")
+# Field identitas dikelompokkan per JENIS. Membandingkan lintas jenis salah:
+# NIK BY PHONE dicari dengan nomor HP dan MEMANG menjawab dengan NIK yang
+# berbeda — kalau NIK itu dianggap "identitas lain", seluruh laporannya
+# (bagian A-F) ditolak sebagai balasan nyasar dan hanya potongan tanpa NIK
+# yang tersimpan.
+_ID_FIELDS_NIK = ("nik", "kk")
+_ID_FIELDS_HP = ("nomor", "msisdn", "no_hp", "nomor_hp", "mobile_number")
+_ID_FIELDS_LAIN = ("id_pelanggan", "nopol")
+_ID_FIELDS = _ID_FIELDS_NIK + _ID_FIELDS_HP + _ID_FIELDS_LAIN
+
+
+def _jenis_identitas(digits: str) -> tuple:
+    """Field mana yang sejenis dengan input, jadi layak dibandingkan."""
+    if len(digits) == 16:
+        return _ID_FIELDS_NIK
+    if 10 <= len(digits) <= 15 and (digits.startswith("62") or digits.startswith("0")
+                                    or digits.startswith("8")):
+        return _ID_FIELDS_HP
+    return _ID_FIELDS
 
 # Nilai ter-mask (mis. "626••••••••••31") tidak bisa dibandingkan dengan input,
 # jadi tidak boleh dipakai untuk menyimpulkan "milik permintaan lain".
@@ -83,9 +101,10 @@ def relates_to_request(value: str, texts: list[str], fields, cmd: str | None = N
         return True                                   # balasan menyebut input kita
 
     records = fields if isinstance(fields, list) else [fields] if fields else []
+    sejenis = _jenis_identitas(ident)
     lain = set()
     for rec in records:
-        for f in _ID_FIELDS:
+        for f in sejenis:
             v = rec.get(f)
             if not v:
                 continue

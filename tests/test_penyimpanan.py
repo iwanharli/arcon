@@ -179,3 +179,21 @@ def test_rapikan_nama_field_menerima_banyak_record():
 
     hasil = N.rapikan_nama_field([{"No. Sertifikat": "1"}, {"No. Sertifikat": "2"}])
     assert [r["nomor_sertifikat"] for r in hasil] == ["1", "2"]
+
+
+def test_identitas_dibandingkan_per_jenis():
+    """Balasan hanya boleh ditolak kalau identitasnya SEJENIS tapi berbeda.
+
+    NIK BY PHONE dicari dengan nomor HP dan memang menjawab dengan NIK yang
+    berbeda. Membandingkan lintas jenis membuat seluruh laporannya ditolak
+    sebagai balasan nyasar — hanya potongan tanpa NIK yang tersimpan.
+    """
+    import service as S
+
+    hp = "08163666609"
+    assert S.relates_to_request(hp, ["NIK: 3275025503930009"],
+                                {"nik": "3275025503930009"}) is not False
+
+    nik = "3275054503060005"
+    assert S.relates_to_request(nik, ["x"], {"nik": "3201010101010001"}) is False
+    assert S.relates_to_request(hp, ["x"], {"nomor": "6281111111111"}) is False
