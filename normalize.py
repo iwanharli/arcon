@@ -98,8 +98,10 @@ _KEY_DINAMIS_MIN_PANJANG = 24
 
 def slug_key(key: str) -> str:
     """Nama field mentah -> slug yang konsisten dan aman dipakai program."""
-    k = _KEY_BUANG_RE.sub("", str(key).strip().lower())
-    k = _KEY_PISAH_RE.sub("_", k)
+    # Pemisah diubah jadi "_" LEBIH DULU: kalau tanda hubung dibuang duluan,
+    # "PBI-JK" jadi "pbijk", bukan "pbi_jk".
+    k = _KEY_PISAH_RE.sub("_", str(key).strip().lower())
+    k = _KEY_BUANG_RE.sub("", k)
     k = _KEY_RAPI_RE.sub("_", k).strip("_")
     if not k:
         return ""

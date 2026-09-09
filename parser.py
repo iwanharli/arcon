@@ -80,7 +80,15 @@ RECORD_HEADER_RE = re.compile(r"^(?:Data\s*(\d+)\.?|#(\d+))\s*(.*)$")
 # "1. "), jadi baru diperlakukan sebagai header kalau dalam satu pesan ada
 # MINIMAL DUA nomor berurutan yang masing-masing diikuti pasangan key:value.
 NUMBERED_HEADER_RE = re.compile(r"^(\d{1,3})[.)]\s+(\S.*)$")
-KV_RE = re.compile(r"^([A-Za-zÀ-ÿ0-9 /_.]{2,40}?)\s*:\s*(.*)$")
+# Nama field boleh memuat tanda hubung: "PBI-JK", "MA-RI", "E-KTP". Tanpa itu
+# barisnya tidak dikenali sebagai pasangan nama/nilai sama sekali dan datanya
+# HILANG — terbukti pada "4. PBI-JK: TIDAK" yang tidak pernah tersimpan.
+KV_RE = re.compile(r"^([A-Za-zÀ-ÿ0-9 /_.\-]{2,40}?)\s*:\s*(.*)$")
+
+# Nomor urut di depan nama field ("1. DESIL:", "2. SEMBAKO:") adalah penomoran
+# daftar, bukan bagian dari namanya. Kalau ikut terbawa, tiap butir jadi field
+# berbeda (n_1_desil, n_2_sembako) dan skemanya berubah-ubah mengikuti urutan.
+NOMOR_URUT_RE = re.compile(r"^\d{1,2}[.)]\s+")
 EMOJI_RE = re.compile(r"[\U0001F000-\U0001FFFF☀-➿←-⇿⬀-⯿]")
 
 # Blok yang isinya cuma info pagination, bukan record data.
@@ -165,7 +173,8 @@ def _parse_kv_block(lines: list[str]) -> tuple[dict, list[str]]:
             continue
         m = KV_RE.match(line)
         if m:
-            key = strip_emoji(m.group(1)).strip().lower().replace(" ", "_")
+            key = NOMOR_URUT_RE.sub("", strip_emoji(m.group(1)).strip())
+            key = key.lower().replace(" ", "_")
             if key:
                 fields[key] = m.group(2).strip()
                 continue
