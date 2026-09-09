@@ -35,6 +35,31 @@ import routes
 
 # Batas ukuran foto yang diterima untuk pencarian berbasis gambar.
 MAKS_BERKAS = 8 * 1024 * 1024
+
+# Tanda pengenal berkas gambar, dibaca dari ISI berkas.
+#
+# Content-type dari klien tidak bisa dipercaya: multipart.CreateFormFile di Go
+# memberi "application/octet-stream" secara bawaan, sehingga unggahan foto dari
+# ArtemisID ditolak "hanya menerima gambar" padahal isinya JPEG yang sah.
+_TANDA_GAMBAR = (
+    (b"\xff\xd8\xff", "image/jpeg"),
+    (b"\x89PNG\r\n\x1a\n", "image/png"),
+    (b"GIF87a", "image/gif"),
+    (b"GIF89a", "image/gif"),
+)
+
+
+def _tipe_gambar(data: bytes, ctype: str | None) -> str | None:
+    """Kembalikan content-type gambar, atau None kalau bukan gambar."""
+    for tanda, tipe in _TANDA_GAMBAR:
+        if data.startswith(tanda):
+            return tipe
+    if data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+        return "image/webp"
+    # Isi tidak dikenali: baru percaya pada content-type yang menyebut gambar.
+    if ctype and ctype.startswith("image/"):
+        return ctype
+    return None
 from connector import TelegramConnector
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -374,8 +399,8 @@ async def search_file(bot: str, cmd: str = Form(...), file: UploadFile = File(..
     if len(data) > MAKS_BERKAS:
         raise HTTPException(status_code=413,
                             detail=f"berkas melebihi {MAKS_BERKAS // (1024*1024)} MB")
-    ctype = file.content_type or "image/jpeg"
-    if not ctype.startswith("image/"):
+    ctype = _tipe_gambar(data, file.content_type)
+    if ctype is None:
         raise HTTPException(status_code=400, detail="hanya menerima gambar")
 
     conn = state["conn"]

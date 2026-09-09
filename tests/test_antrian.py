@@ -110,3 +110,19 @@ async def test_job_berkas_dedup_dan_validasi(conn, nilai):
     async with conn.cursor() as cur:
         await cur.execute("DELETE FROM search_jobs WHERE value = %s", (mid,))
         await cur.execute("DELETE FROM media_blobs WHERE id = %s", (mid,))
+
+
+def test_gambar_dikenali_dari_isinya():
+    """Content-type dari klien tidak bisa dipercaya.
+
+    multipart.CreateFormFile di Go memberi "application/octet-stream" secara
+    bawaan, sehingga unggahan foto dari ArtemisID ditolak "hanya menerima
+    gambar" padahal isinya JPEG yang sah.
+    """
+    import api
+
+    jpeg = b"\xff\xd8\xff\xe0" + b"\x00" * 32
+    png = b"\x89PNG\r\n\x1a\n" + b"\x00" * 32
+    assert api._tipe_gambar(jpeg, "application/octet-stream") == "image/jpeg"
+    assert api._tipe_gambar(png, None) == "image/png"
+    assert api._tipe_gambar(b"bukan gambar", "application/octet-stream") is None
