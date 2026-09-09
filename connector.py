@@ -592,7 +592,9 @@ class TelegramConnector:
         import parser as _p
 
         for ke, (msg, baris, kolom, data) in enumerate(tombol[:maks], 1):
-            def _isi(m: Message) -> bool:
+            kunci = data.lower().split(pola.lower(), 1)[-1] if pola.lower() in data.lower() else ""
+
+            def _isi(m: Message, _k=kunci) -> bool:
                 t = (m.text or "")
                 if any(x in t.lower() for x in markers):
                     return False
@@ -602,6 +604,13 @@ class TelegramConnector:
                 # detailnya tidak pernah tersimpan.
                 if _p.is_preamble(t):
                     return False
+                # Detail kandidat SEBELUMNYA sering baru tiba saat kandidat
+                # berikutnya sudah diklik. Kalau tidak dicocokkan ke kuncinya,
+                # jawaban yang telat itu diterima sebagai jawaban kandidat ini
+                # — tiga dari lima kandidat "menjawab" dalam 9 detik, padahal
+                # detail aslinya butuh ~23 detik.
+                if _k and _k.isdigit():
+                    return _k in re.sub(r"\D", "", t)
                 return bool(t.strip()) or m.media is not None
 
             async def _klik(_m=msg, _b=baris, _k=kolom, _d=data):
@@ -615,7 +624,6 @@ class TelegramConnector:
             else:
                 log.info("kandidat %d/%d: %d pesan detail",
                          ke, min(len(tombol), maks), len(isi))
-            kunci = data.lower().split(pola.lower(), 1)[-1] if pola.lower() in data.lower() else ""
             terkumpul.append((kunci, hasil))
             if linger:
                 await asyncio.sleep(linger)      # beri jeda antar kandidat
