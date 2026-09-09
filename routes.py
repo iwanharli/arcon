@@ -84,11 +84,18 @@ ROUTES: dict[tuple[str, str], Route] = {
     ("bot1", "/datacenter"): Route(N.normalize_raw, "records", "data_center", False, "DATA CENTER"),
 
     # ------------------------------------------------ bot1: input berupa FOTO
-    # FR SOCIAL MEDIA meminta "kirim foto wajah yang ingin dicari".
-    # (Menu FACE RECOGNITION hanya menampilkan CONTOH UPLOAD FOTO, bukan
-    # pencarian — sengaja tidak dirutekan.)
+    # Ada DUA fitur berbasis wajah, dan keduanya berbeda:
+    #
+    #   FACE RECOGNITION  -> pengenalan wajah. Balasannya sebuah FOTO berjudul
+    #     "CONTOH UPLOAD FOTO", tanpa kalimat ajakan — sempat dikira cuma
+    #     pajangan contoh. Ternyata ia memang menunggu foto: menekan Batal di
+    #     situ dijawab "Proses pengenalan wajah dibatalkan".
+    #   FR SOCIAL MEDIA   -> penelusuran wajah di media sosial, mengembalikan
+    #     daftar situs tempat wajah itu muncul.
     ("bot1", "/fr"): Route(N.normalize_person, "records", "face", False,
-                           "\U0001F525 FR SOCIAL MEDIA", None, True),
+                           "FACE RECOGNITION", None, True),
+    ("bot1", "/frsocmed"): Route(N.normalize_person, "records", "face_socmed", False,
+                                 "\U0001F525 FR SOCIAL MEDIA", None, True),
 
     # ------------------------------------------------- bot1: alur TIGA langkah
     # menu -> klik tombol submenu (callback data di kolom `choice`) -> nilai.
