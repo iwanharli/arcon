@@ -9,8 +9,10 @@ setiap kali API berubah panduannya bisa dilahirkan ulang persis:
 reportlab TIDAK dimasukkan ke requirements.txt karena tidak dipakai saat API
 berjalan — hanya saat menulis ulang panduan ini.
 """
+import json
 import os
 import pathlib
+import sys
 
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER
@@ -136,6 +138,73 @@ def kaki(canvas, doc):
         canvas.line(22 * mm, 284 * mm, 188 * mm, 284 * mm)
     canvas.drawRightString(188 * mm, 12 * mm, f"Halaman {doc.page}")
     canvas.restoreState()
+
+
+def _katalog_baris():
+    """Semua command dari routes.py + docs/skema.json, diurutkan per menu bot.
+
+    Dibaca langsung dari kode, bukan disalin ke dalam dokumen, supaya katalog
+    di panduan tidak pernah ketinggalan dari rute yang sebenarnya dilayani.
+    """
+    sys.path.insert(0, str(pathlib.Path(__file__).parent.parent))
+    import routes  # noqa: E402 - butuh sys.path di atas
+
+    try:
+        skema = json.loads((pathlib.Path(__file__).parent / "skema.json")
+                           .read_text(encoding="utf8"))
+    except (OSError, ValueError):
+        skema = {}
+
+    baris = []
+    for (bot, cmd), r in routes.ROUTES.items():
+        # Nama menu di bot memuat emoji yang tidak punya rupa di font PDF dan
+        # tercetak jadi kotak hitam; hanya bagian ASCII-nya yang dipakai.
+        tanda = []
+        if r.volatile:
+            tanda.append("RT")
+        if r.berkas:
+            tanda.append("FOTO")
+        if skema.get(f"{bot}{cmd}", {}).get("terverifikasi"):
+            tanda.append("OK")
+        menu = "".join(ch for ch in (r.menu or "") if ch.isascii()).strip()
+        baris.append((menu or "(command langsung)", cmd, bot, r.kind or r.target,
+                      " ".join(tanda)))
+    baris.sort(key=lambda b: (b[0], b[1]))
+    return baris
+
+
+def katalog_command():
+    baris = _katalog_baris()
+    isi = [["menu di bot", "command", "bot", "jenis data", "sifat"]]
+    menu_sebelumnya = None
+    for menu, cmd, bot, jenis, tanda in baris:
+        # Nama menu hanya dicetak sekali per kelompok supaya kolomnya tidak
+        # jadi dinding teks berulang.
+        isi.append([menu if menu != menu_sebelumnya else "", cmd, bot, jenis, tanda])
+        menu_sebelumnya = menu
+
+    t = Table(isi, colWidths=[46 * mm, 40 * mm, 13 * mm, 34 * mm, 19 * mm],
+              hAlign="LEFT", repeatRows=1)
+    gaya = [
+        ("FONT", (0, 0), (-1, 0), "Helvetica-Bold", 7.5),
+        ("FONT", (0, 1), (0, -1), "Helvetica", 7),
+        ("FONT", (1, 1), (1, -1), "Courier", 7),
+        ("FONT", (2, 1), (-1, -1), "Helvetica", 7),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("BACKGROUND", (0, 0), (-1, 0), TINTA),
+        ("GRID", (0, 0), (-1, -1), 0.3, GARIS),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 4),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+        ("TOPPADDING", (0, 0), (-1, -1), 2),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+    ]
+    # Garis tebal di awal tiap kelompok menu, sebagai ganti judul terpisah.
+    for i in range(1, len(isi)):
+        if isi[i][0]:
+            gaya.append(("LINEABOVE", (0, i), (-1, i), 0.9, TINTA))
+    t.setStyle(TableStyle(gaya))
+    return t, len(baris)
 
 
 def isi_dokumen():
@@ -614,6 +683,45 @@ function cariNomor($nomor) {
             "Akses dari luar VPS dijaga API key + rate limit 10 request/detik per IP + TLS. "
             "Port mentah 8765 tertutup dari internet.",
         ]),
+    ]
+
+    # ---------------------------------------------------- 7. katalog command
+    tabel_katalog, jumlah = katalog_command()
+    c += [
+        PageBreak(),
+        P("7. Katalog Lengkap Command", "bab"),
+        P(f"Artemis sendiri hanya memakai tiga command, tetapi connector melayani "
+          f"<b>{jumlah} command</b> - semuanya bisa dipanggil lewat endpoint yang sama. "
+          "Daftar ini dibangkitkan langsung dari rute yang dilayani, jadi tidak akan "
+          "ketinggalan dari kenyataan; sumber yang selalu paling mutakhir tetap "
+          "<font face='Courier'>GET /commands</font>."),
+        kotak("Command bermenu dipanggil sama saja.",
+              "Sebagian besar command di bawah sebenarnya bukan perintah teks, melainkan "
+              "rangkaian klik pada menu tombol bot (mis. MONITORING TEKAB &rarr; Trace Number). "
+              "Aplikasi tidak perlu tahu itu: cukup kirim "
+              "<font face='Courier'>{\"cmd\":\"/tracenumber\",\"value\":\"...\"}</font> dan "
+              "connector yang menelusuri menunya."),
+        Spacer(1, 3 * mm),
+        tabel([
+            ["tanda", "arti"],
+            ["RT", "always_fresh - selalu real-time, tidak pernah dijawab dari cache"],
+            ["FOTO", "masukannya berkas gambar, lewat POST /search/{bot}/file"],
+            ["OK", "sudah terverifikasi: pernah menghasilkan data, atribut diketahui"],
+        ], [22 * mm, 143 * mm]),
+        Spacer(1, 3 * mm),
+        P("Kolom <b>jenis data</b> memakai <font face='Courier'>kind</font> dari "
+          "<font face='Courier'>GET /commands</font>; bila command itu mengisi profil orang "
+          "(bukan catatan), yang tertulis adalah muaranya: "
+          "<font face='Courier'>profiles</font>, <font face='Courier'>phones</font>, atau "
+          "<font face='Courier'>vehicles</font>.", "kecil"),
+        Spacer(1, 3 * mm),
+        tabel_katalog,
+        Spacer(1, 4 * mm),
+        kotak("Tanpa tanda OK bukan berarti command-nya rusak.",
+              "Itu hanya berarti command tersebut belum pernah dipanggil dengan nilai yang "
+              "menghasilkan data, sehingga daftar atributnya belum terbentuk. Begitu sekali saja "
+              "berhasil, atributnya otomatis masuk katalog dan ikut muncul di "
+              "<font face='Courier'>GET /commands</font>."),
     ]
     return c
 
