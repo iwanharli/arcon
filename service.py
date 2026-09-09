@@ -322,6 +322,7 @@ async def _ask_and_parse(tg, bot: str, cmd: str, value: str,
                         "msg": f"berkas {value} tidak ditemukan",
                         "_texts": [], "_replies": []}
             replies = await tg.ask_file(bot, menu, bytes(blob["bytes"]),
+                                        choice=choice,
                                         timeout=batas, ack_markers=parser.ACK_MARKERS,
                                         accept=_accept, linger=linger or LINGER_MENU)
             good = [m for m in replies if not parser.is_preamble(m.text)]

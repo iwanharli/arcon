@@ -471,6 +471,7 @@ class TelegramConnector:
         return terkumpul
 
     async def ask_file(self, bot: str, menu: str, data: bytes, nama: str = "foto.jpg", *,
+                       choice: str | None = None,
                        timeout: float | None = None,
                        prompt_timeout: float = 60,
                        ack_markers: Iterable[str] = (),
@@ -514,9 +515,40 @@ class TelegramConnector:
             await self.client.send_file(entity, berkas, force_document=False)
             log.info("-> %s: kirim berkas %s (%d byte)", target, nama, len(data))
 
-        return await self.ask(bot, "", timeout=timeout, wait_final=True,
-                              ack_markers=markers, accept=accept, linger=linger,
-                              aksi=_kirim)
+        hasil = await self.ask(bot, "", timeout=timeout, wait_final=True,
+                               ack_markers=markers, accept=accept, linger=linger,
+                               aksi=_kirim)
+        if not choice:
+            return hasil
+
+        # FACE RECOGNITION tidak langsung mencari: setelah foto diterima ia
+        # meminta MODE ("FR 1 Deep Match / FR 2 Quick Match / FR 3 Multiple
+        # Match"). Tombolnya dicocokkan lewat TEKS, bukan callback data,
+        # supaya tidak bergantung pada penamaan internal bot.
+        found = self._cari_tombol(hasil, choice)
+        if not found:
+            log.warning("mode %r tidak ditemukan setelah foto dikirim di %s",
+                        choice, menu)
+            return hasil
+        msg, baris, kolom = found
+        entity2 = await self.client.get_entity(config.resolve(bot))
+
+        async def _klik():
+            await msg.click(baris, kolom)
+            log.info("-> %s: pilih mode %r", config.resolve(bot), choice)
+
+        def _selesai(m: Message) -> bool:
+            t = (m.text or "")
+            if any(x in t.lower() for x in markers):
+                return False
+            if accept is not None and not accept(m):
+                return False
+            return bool(t.strip()) or m.media is not None
+
+        lanjut = await self._tunggu(entity2, _selesai,
+                                    timeout if timeout is not None else 300,
+                                    aksi=_klik)
+        return hasil + lanjut
 
     async def download_media(self, msg: Message) -> tuple[bytes, str] | None:
         """Unduh media (foto) dari sebuah pesan. Kembalikan (bytes, content_type)
