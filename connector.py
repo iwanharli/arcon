@@ -554,7 +554,7 @@ class TelegramConnector:
     async def telusuri_kandidat(self, bot: str, pesan, pola: str, maks: int = 10, *,
                                 step_timeout: float = 120,
                                 ack_markers: Iterable[str] = (),
-                                linger: float = 5) -> list[Message]:
+                                linger: float = 5) -> list[tuple[str, list[Message]]]:
         """Klik tiap tombol kandidat dan kumpulkan detailnya.
 
         Hasil FACE RECOGNITION berupa daftar kecocokan, dan detail tiap orang
@@ -564,6 +564,11 @@ class TelegramConnector:
 
         Tanpa penelusuran ini yang tersimpan hanya NIK dan skor kemiripan,
         bukan datanya.
+
+        Kembalian: daftar (kunci, pesan). `kunci` diambil dari callback data
+        setelah `pola`, mis. "3203114907960005". Pemanggil membutuhkannya untuk
+        menautkan detail ke kandidatnya — tanpa penanda itu kelima detail punya
+        subject yang sama dan saling ter-dedup di profile_records.
         """
         markers = tuple(ack_markers)
         entity = await self.client.get_entity(config.resolve(bot))
@@ -583,7 +588,7 @@ class TelegramConnector:
 
         log.info("%d kandidat ditemukan di %s (dari %d pesan), ditelusuri maks %d",
                  len(tombol), bot, len(pesan), maks)
-        terkumpul: list[Message] = []
+        terkumpul: list[tuple[str, list[Message]]] = []
         import parser as _p
 
         for ke, (msg, baris, kolom, data) in enumerate(tombol[:maks], 1):
@@ -610,7 +615,8 @@ class TelegramConnector:
             else:
                 log.info("kandidat %d/%d: %d pesan detail",
                          ke, min(len(tombol), maks), len(isi))
-            terkumpul += hasil
+            kunci = data.lower().split(pola.lower(), 1)[-1] if pola.lower() in data.lower() else ""
+            terkumpul.append((kunci, hasil))
             if linger:
                 await asyncio.sleep(linger)      # beri jeda antar kandidat
         return terkumpul

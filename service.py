@@ -335,16 +335,41 @@ async def _ask_and_parse(tg, bot: str, cmd: str, value: str,
                                         accept=None, linger=linger or LINGER_MENU)
             # Hasilnya bisa berupa daftar kandidat yang detailnya baru muncul
             # setelah diklik satu per satu.
+            good = [m for m in replies if not parser.is_preamble(m.text)]
+            out = parser.classify([m.text for m in good])
+
+            # Detail tiap kandidat diurai TERPISAH lalu ditandai NIK-nya.
+            # Kalau semuanya digabung jadi satu teks, detail antar-kandidat
+            # bercampur; dan tanpa NIK, kelimanya punya subject yang sama
+            # (hash foto) lalu saling ter-dedup di profile_records — hanya satu
+            # tersimpan, tanpa cara tahu detail itu milik kandidat yang mana.
             pola = routes.pola_kandidat(bot, cmd)
             if pola and KANDIDAT_MAKS:
                 try:
-                    replies = replies + await tg.telusuri_kandidat(
+                    kandidat = await tg.telusuri_kandidat(
                         bot, replies, pola, KANDIDAT_MAKS,
                         ack_markers=parser.ACK_MARKERS)
                 except Exception as exc:               # noqa: BLE001
                     log.warning("%s %s: gagal menelusuri kandidat: %r", bot, cmd, exc)
-            good = [m for m in replies if not parser.is_preamble(m.text)]
-            out = parser.classify([m.text for m in good])
+                    kandidat = []
+                tambahan = []
+                for kunci, pesan in kandidat:
+                    bersih = [m for m in pesan if not parser.is_preamble(m.text)]
+                    hasil = parser.classify([m.text for m in bersih])
+                    if hasil["status"] != "found":
+                        continue
+                    rec = hasil["fields"]
+                    for r in (rec if isinstance(rec, list) else [rec]):
+                        if isinstance(r, dict):
+                            r.setdefault("nik", kunci)
+                            tambahan.append(r)
+                    good += bersih
+                if tambahan:
+                    lama = out.get("fields") or []
+                    lama = lama if isinstance(lama, list) else [lama]
+                    out["fields"] = lama + tambahan
+                    out["status"] = "found"
+
             out["_texts"] = [m.text for m in good]
             out["_replies"] = good
             return out
