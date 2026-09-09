@@ -194,6 +194,27 @@ async def app_session_list(user: str = Query(...)):
     return {"ok": True, "items": await db.app_session_list(state["conn"], user)}
 
 
+@app.get("/app/cached", dependencies=[Depends(auth)])
+async def app_cached(bot: str = Query(...), cmd: str = Query(...), value: str = Query(...)):
+    """Baris cache terbaru (status 'found') untuk (bot, cmd, value).
+
+    DB-ONLY — TIDAK menyentuh Telegram. Dipakai Artemis untuk recheck:
+    ambil hasil temuan yang sudah pernah tersimpan di bot_query_cache.
+    """
+    row = await db.cached_row(state["conn"], bot, cmd, value)
+    if not row:
+        return {"ok": True, "found": False}
+    media = [f"/media/{i}" for i in (row.get("media") or [])]
+    return {
+        "ok": True,
+        "found": True,
+        "status": row["status"],
+        "msg": row.get("msg"),
+        "fields": row.get("fields"),
+        "media": media,
+    }
+
+
 @app.get("/app/sessions/{sid}", dependencies=[Depends(auth)])
 async def app_session_get(sid: str, user: str = Query(...)):
     data = await db.app_session_get(state["conn"], sid, user)
