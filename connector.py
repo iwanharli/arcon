@@ -148,6 +148,16 @@ class TelegramConnector:
 
         for m in replies:
             log.info("<- %s: %s", target, (m.text or "").replace("\n", " ")[:200])
+            # Tombol pada balasan dicatat: sebagian fitur menyajikan hasil
+            # sebagai daftar kandidat yang harus diklik satu per satu, dan
+            # tanpa ini bentuk tombolnya tidak bisa diketahui dari log.
+            mk = m.reply_markup
+            if mk and getattr(mk, "rows", None):
+                tombol = [
+                    (b.text or "") + "=" + (getattr(b, "data", None) or b"").decode("utf8", "replace")
+                    for r in mk.rows for b in r.buttons
+                ]
+                log.info("<- %s: [tombol] %s", target, " | ".join(tombol)[:400])
         return replies
 
     # Bot menu-driven (mis. teamkhususantibanditbot) tidak menerima
