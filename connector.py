@@ -157,7 +157,8 @@ class TelegramConnector:
                     (b.text or "") + "=" + (getattr(b, "data", None) or b"").decode("utf8", "replace")
                     for r in mk.rows for b in r.buttons
                 ]
-                log.info("<- %s: [tombol] %s", target, " | ".join(tombol)[:400])
+                log.info("<- %s: [tombol] %d buah: %s",
+                         target, len(tombol), " | ".join(tombol)[:1200])
         return replies
 
     # Bot menu-driven (mis. teamkhususantibanditbot) tidak menerima
@@ -580,8 +581,8 @@ class TelegramConnector:
         if not tombol:
             return []
 
-        log.info("%d kandidat ditemukan di %s, ditelusuri maks %d",
-                 len(tombol), bot, maks)
+        log.info("%d kandidat ditemukan di %s (dari %d pesan), ditelusuri maks %d",
+                 len(tombol), bot, len(pesan), maks)
         terkumpul: list[Message] = []
         for ke, (msg, baris, kolom, data) in enumerate(tombol[:maks], 1):
             def _isi(m: Message) -> bool:
