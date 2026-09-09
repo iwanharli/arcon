@@ -559,6 +559,20 @@ kuota harian per fitur di bot.
 `docs/skema.json`. Jalankan `python skema.py --tulis` setelah ada hasil baru;
 API membacanya saat diminta, jadi tidak perlu restart.
 
+### Nama field di respons API
+
+`GET /jobs/{id}`, `POST /search/{bot}`, dan `/app/cached` menyeragamkan NAMA
+field lewat `normalize.rapikan_nama_field()` sebelum mengirim — **nilainya
+tidak disentuh** (`abuse@detik.net.id` tetap huruf kecil).
+
+Perlu karena sebelumnya API mengirim hasil parse mentah (`berlaku_s/d`,
+`no._sertifikat`) sedangkan `atribut` di `GET /commands` dibangun dari
+`profile_records` yang sudah diseragamkan (`berlaku_sampai`,
+`nomor_sertifikat`). Konsumen JSON harus menebak ejaan mana yang berlaku.
+
+Sekarang keduanya sama, dan metadata pencarian (`keyword`, `total_ditemukan`,
+`menampilkan`) tidak lagi ikut sebagai atribut.
+
 ### Bentuk JSON per command
 
 Setiap command menghasilkan JSON dengan nama field yang konsisten

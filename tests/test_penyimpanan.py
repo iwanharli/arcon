@@ -151,3 +151,31 @@ async def test_hapus_cache_ikut_hapus_turunan(conn, nilai):
         conn, "bot1", "/bpom", nilai, "found",
         fields={"nama": nilai, "nie": "MD-UJI-001"})
     assert await _records(conn, qid2), "insert baru tertahan sisa lama"
+
+
+def test_nama_field_api_cocok_dengan_katalog():
+    """Nama field di respons API harus sama dengan `atribut` di GET /commands.
+
+    Sebelumnya tidak: API mengirim hasil parse mentah ('berlaku_s/d'),
+    sedangkan katalog dibangun dari profile_records yang sudah diseragamkan
+    ('berlaku_sampai'). Konsumen JSON jadi harus menebak ejaannya.
+    """
+    import normalize as N
+
+    mentah = {"Berlaku s/d": "2029-08-05", "No. Sertifikat": "0009",
+              "Abuse Email": "abuse@detik.net.id", "Keyword": "Indomie",
+              "2013": "MURI"}
+    api = N.rapikan_nama_field(mentah)
+    simpan = N.normalize_raw(mentah)
+
+    assert set(api) == set(simpan), "nama field API beda dengan yang disimpan"
+    assert api["abuse_email"] == "abuse@detik.net.id", "nilai tidak boleh diubah"
+    assert "keyword" not in api, "metadata pencarian tidak boleh jadi atribut"
+    assert api["tahun_2013"] == "MURI"
+
+
+def test_rapikan_nama_field_menerima_banyak_record():
+    import normalize as N
+
+    hasil = N.rapikan_nama_field([{"No. Sertifikat": "1"}, {"No. Sertifikat": "2"}])
+    assert [r["nomor_sertifikat"] for r in hasil] == ["1", "2"]

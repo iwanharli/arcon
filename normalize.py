@@ -531,3 +531,35 @@ def normalize_raw(raw: dict) -> dict:
     if lain:
         out["lainnya"] = lain
     return out
+
+
+def rapikan_nama_field(fields):
+    """Seragamkan NAMA field untuk respons API — nilainya tidak disentuh.
+
+    normalize_raw() juga merapikan nama, tapi sekaligus meng-UPPERCASE nilainya
+    karena ditujukan untuk penyimpanan. Untuk respons API nilai harus utuh
+    ('abuse@detik.net.id', bukan 'ABUSE@DETIK.NET.ID'), sementara namanya tetap
+    perlu konsisten supaya cocok dengan `atribut` di GET /commands dan
+    docs/skema.json — sebelumnya tidak: API mengirim 'berlaku_s/d' sedangkan
+    katalog menyebut 'berlaku_sampai'.
+
+    Menerima satu record (dict) atau banyak record (list).
+    """
+    if isinstance(fields, list):
+        return [rapikan_nama_field(f) for f in fields]
+    if not isinstance(fields, dict):
+        return fields
+
+    out, lain = {}, {}
+    for key, value in fields.items():
+        k = slug_key(key)
+        k = FIELD_ALIASES.get(k, k)
+        if not k or k in DROP_KEYS:
+            continue                      # metadata pencarian, bukan atribut
+        if key_dinamis(k):
+            lain[k] = value               # nama key berubah tiap balasan
+            continue
+        out[k] = value
+    if lain:
+        out["lainnya"] = lain
+    return out
