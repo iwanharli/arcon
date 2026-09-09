@@ -162,9 +162,31 @@ async def _fail(conn, job_id: str, error: str) -> None:
         )
 
 
+async def pulihkan_tersangkut(conn) -> int:
+    """Kembalikan job yang mati di tengah jalan ke antrian.
+
+    _claim_next() hanya mengambil job berstatus 'queued'. Kalau proses mati
+    saat sebuah job sedang diproses (restart/deploy), barisnya tertinggal
+    'running' SELAMANYA — tidak pernah diulang, tidak pernah selesai, dan
+    pemanggilnya menunggu tanpa hasil. Terbukti di produksi: dua job tertinggal
+    running setelah deploy.
+
+    Dipanggil sekali saat worker start; aman karena worker hanya satu.
+    """
+    async with conn.cursor() as cur:
+        await cur.execute(
+            "UPDATE search_jobs SET state = 'queued' WHERE state = 'running' "
+            "RETURNING job_id")
+        rows = await cur.fetchall()
+    if rows:
+        log.warning("%d job tersangkut 'running' dikembalikan ke antrian", len(rows))
+    return len(rows)
+
+
 async def run_worker(tg, conn, *, poll_interval: float = 2.0,
                      stop_event: asyncio.Event | None = None) -> None:
     """Loop worker: ambil job -> proses -> simpan hasil. Serial, satu-satu."""
+    await pulihkan_tersangkut(conn)
     log.info("worker antrian jalan")
     while not (stop_event and stop_event.is_set()):
         job = await _claim_next(conn)
