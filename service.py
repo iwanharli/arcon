@@ -199,7 +199,12 @@ async def query(tg, conn, bot: str, cmd: str, value: str, *,
     # Jangan simpan balasan yang ternyata milik permintaan lain (lihat
     # relates_to_request). Ditandai queue_without_data supaya dicoba ulang,
     # bukan found — kalau tidak, data orang lain masuk ke profil kita.
-    if result["status"] == "found" and relates_to_request(value, texts, result["fields"], cmd) is False:
+    # Job berbasis berkas memakai sha256 sebagai `value`. Digit di dalam hash
+    # itu bukan identitas apa pun, tapi _identifier() menganggapnya nomor, lalu
+    # SELURUH balasan ditolak sebagai "milik permintaan lain".
+    berkas_job = routes.butuh_berkas(bot, cmd)
+    if (not berkas_job and result["status"] == "found"
+            and relates_to_request(value, texts, result["fields"], cmd) is False):
         log.warning("balasan tidak cocok dengan permintaan %s %s %s — diabaikan",
                     bot, cmd, value)
         result = {
@@ -324,7 +329,7 @@ async def _ask_and_parse(tg, bot: str, cmd: str, value: str,
             replies = await tg.ask_file(bot, menu, bytes(blob["bytes"]),
                                         choice=choice,
                                         timeout=batas, ack_markers=parser.ACK_MARKERS,
-                                        accept=_accept, linger=linger or LINGER_MENU)
+                                        accept=None, linger=linger or LINGER_MENU)
             good = [m for m in replies if not parser.is_preamble(m.text)]
             out = parser.classify([m.text for m in good])
             out["_texts"] = [m.text for m in good]

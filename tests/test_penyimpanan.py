@@ -233,3 +233,19 @@ def test_format_nomor_disamakan():
     assert S.relates_to_request("08163666609", ["NOMOR : 628163666609"], None) is True
     assert S.relates_to_request("08163666609", ["x"], {"nomor": "628163666609"}) is not False
     assert S.relates_to_request("08163666609", ["x"], {"nomor": "628111111111"}) is False
+
+
+def test_hash_berkas_bukan_identitas():
+    """Job berbasis foto memakai sha256 sebagai `value`.
+
+    Digit di dalam hash bukan identitas apa pun, tapi _identifier()
+    menganggapnya nomor — akibatnya seluruh balasan pencarian wajah ditolak
+    sebagai "milik permintaan lain" dan hasilnya hilang.
+    """
+    import routes
+    import service as S
+
+    sha = "61db565b4b0f62fc412136e159560360a5da252a9ab62c71f3089475637e61f0"
+    assert S._identifier(sha) is not None, "hash memang terbaca sebagai angka"
+    assert routes.butuh_berkas("bot1", "/fr") is True, (
+        "jalur berkas harus dikenali supaya pencocokan identitas dilewati")
