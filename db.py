@@ -201,8 +201,16 @@ async def log_list(conn, username: str | None = None, limit: int = 200) -> list[
                 (limit,),
             )
         rows = await cur.fetchall()
-    return [{**r, "detail": r.get("detail"), "created_at": str(r["created_at"])}
-            for r in rows]
+    out = []
+    for r in rows:
+        out.append({
+            "id": r["id"],
+            "username": r["username"],
+            "event": r["event"],
+            "detail": r["detail"],
+            "created_at": str(r["created_at"]),
+        })
+    return out
 
 
 # ------------------------------------------------------------------- media
