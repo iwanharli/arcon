@@ -28,6 +28,13 @@ log = logging.getLogger("artemis.db")
 
 DSN = os.getenv("PG_DSN", "postgresql:///db_artemis")
 
+# Berapa hari hasil 'found' boleh disajikan ulang dari cache.
+#
+# Tanpa batas ini cache tidak pernah kedaluwarsa: hasil hari ini akan terus
+# dijawab berbulan-bulan kemudian, dan data yang berubah (registrasi nomor,
+# alamat) disajikan basi tanpa pengguna tahu. 0 = tanpa batas.
+CACHE_HARI = int(os.getenv("CACHE_HARI", "30"))
+
 # Kolom profiles yang boleh di-upsert (selain nik yang jadi conflict target).
 _PROFILE_COLS = [
     "kk", "shdk", "nama", "tempat_lahir", "tanggal_lahir", "jenis_kelamin",
@@ -52,6 +59,7 @@ async def lookup(conn, bot: str, cmd: str, value: str) -> dict | None:
         no_response)                       -> None, harus hit Telegram lagi
       - command volatile (lokasi, masa
         aktif)                             -> None, selalu hit ulang
+      - lebih tua dari CACHE_HARI          -> None, disegarkan ke bot
     """
     if routes.is_volatile(bot, cmd):
         return None
@@ -60,14 +68,23 @@ async def lookup(conn, bot: str, cmd: str, value: str) -> dict | None:
     # lama bisa punya cmd yang namanya sama tapi berasal dari bot yang sudah
     # tidak dipakai. Hanya baris dari bot yang sekarang aktif yang boleh
     # menjawab; baris tanpa bot_username (sebelum migrasi 010) tidak dipercaya.
+    # Batas umur ditulis sebagai interval hari, bukan tanggal yang dihitung di
+    # Python, supaya perbandingannya memakai jam server database — sumber waktu
+    # yang sama dengan yang menulis tested_at.
+    umur = "" if CACHE_HARI <= 0 else (
+        " AND tested_at > now() - (%s * INTERVAL '1 day')")
+    params = [bot, cmd, value, config.resolve(bot)]
+    if umur:
+        params.append(CACHE_HARI)
+
     async with conn.cursor() as cur:
         await cur.execute(
-            """
+            f"""
             SELECT * FROM bot_query_cache
              WHERE bot = %s AND cmd = %s AND value = %s AND status = 'found'
-               AND bot_username = %s
+               AND bot_username = %s{umur}
             """,
-            (bot, cmd, value, config.resolve(bot)),
+            params,
         )
         return await cur.fetchone()
 
