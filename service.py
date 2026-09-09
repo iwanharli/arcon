@@ -289,6 +289,9 @@ HALAMAN_MAKS = int(__import__("os").getenv("HALAMAN_MAKS", "0"))
 PHOTO_CMDS = {"/foto", "/nik", "/kk", "/paspor", "/pasporkerja", "/imigrasi"}
 PHOTO_LINGER = 8.0
 
+# Berapa kandidat hasil yang ditelusuri detailnya (lihat Route.kandidat).
+KANDIDAT_MAKS = int(__import__("os").getenv("KANDIDAT_MAKS", "10"))
+
 # Jeda senyap untuk alur menu biasa: jawaban dianggap selesai kalau tidak ada
 # pesan baru selama sekian detik (lihat MAKS_SENYAP di connector.py).
 LINGER_MENU = float(__import__("os").getenv("LINGER_MENU", "5"))
@@ -330,6 +333,16 @@ async def _ask_and_parse(tg, bot: str, cmd: str, value: str,
                                         choice=choice,
                                         timeout=batas, ack_markers=parser.ACK_MARKERS,
                                         accept=None, linger=linger or LINGER_MENU)
+            # Hasilnya bisa berupa daftar kandidat yang detailnya baru muncul
+            # setelah diklik satu per satu.
+            pola = routes.pola_kandidat(bot, cmd)
+            if pola and KANDIDAT_MAKS:
+                try:
+                    replies = replies + await tg.telusuri_kandidat(
+                        bot, replies, pola, KANDIDAT_MAKS,
+                        ack_markers=parser.ACK_MARKERS)
+                except Exception as exc:               # noqa: BLE001
+                    log.warning("%s %s: gagal menelusuri kandidat: %r", bot, cmd, exc)
             good = [m for m in replies if not parser.is_preamble(m.text)]
             out = parser.classify([m.text for m in good])
             out["_texts"] = [m.text for m in good]
