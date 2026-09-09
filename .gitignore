@@ -2,6 +2,8 @@
 .env
 *.session
 *.session-journal
+# session cadangan saat ganti akun: *.session.bot-lama-<tanggal>
+*.session.*
 # tests/values.py berisi NIK/nama/nomor HP asli
 tests/values.py
 # tests/results/ berisi hasil query data pribadi (kalau dibuat lagi)
