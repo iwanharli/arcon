@@ -31,6 +31,7 @@ class Route(NamedTuple):
     menu: str | None = None   # label ReplyKeyboard; None = dialek command
     choice: str | None = None  # callback data tombol submenu (alur 3 langkah)
     berkas: bool = False       # True = langkah terakhir mengirim FOTO, bukan teks
+    kandidat: str | None = None  # pola callback tombol hasil yang perlu diklik
 
 
 def _p(target="profiles", kind=None, volatile=False, menu=None, choice=None):
@@ -98,8 +99,10 @@ ROUTES: dict[tuple[str, str], Route] = {
     #
     # Botnya menawarkan tiga mode (Deep / Quick / Multiple Match); yang dipakai
     # Artemis hanya Quick Match, jadi hanya itu yang dirutekan.
+    # `kandidat`: hasilnya berupa daftar kecocokan yang detailnya baru muncul
+    # setelah tombolnya diklik ("Lihat Data NIK ..." -> view_nik_<nik>).
     ("bot1", "/fr"): Route(N.normalize_person, "records", "face", False,
-                           "FACE RECOGNITION", "Quick Match", True),
+                           "FACE RECOGNITION", "Quick Match", True, "view_nik_"),
     ("bot1", "/frsocmed"): Route(N.normalize_person, "records", "face_socmed", False,
                                  "\U0001F525 FR SOCIAL MEDIA", None, True),
 
@@ -313,6 +316,12 @@ def menu_label(bot: str, cmd: str) -> str | None:
     """Label ReplyKeyboard untuk command ini, None kalau dialek command."""
     route = ROUTES.get((bot, cmd))
     return route.menu if route else None
+
+
+def pola_kandidat(bot: str, cmd: str) -> str | None:
+    """Pola callback tombol kandidat yang perlu ditelusuri, kalau ada."""
+    route = ROUTES.get((bot, cmd))
+    return route.kandidat if route else None
 
 
 def butuh_berkas(bot: str, cmd: str) -> bool:

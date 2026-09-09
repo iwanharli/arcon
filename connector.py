@@ -550,6 +550,59 @@ class TelegramConnector:
                               ack_markers=markers, accept=accept, linger=linger,
                               aksi=_kirim)
 
+    async def telusuri_kandidat(self, bot: str, pesan, pola: str, maks: int = 10, *,
+                                step_timeout: float = 120,
+                                ack_markers: Iterable[str] = (),
+                                linger: float = 5) -> list[Message]:
+        """Klik tiap tombol kandidat dan kumpulkan detailnya.
+
+        Hasil FACE RECOGNITION berupa daftar kecocokan, dan detail tiap orang
+        baru muncul setelah tombolnya ditekan:
+
+            Lihat Data NIK 3203114907960005  ->  view_nik_3203114907960005
+
+        Tanpa penelusuran ini yang tersimpan hanya NIK dan skor kemiripan,
+        bukan datanya.
+        """
+        markers = tuple(ack_markers)
+        entity = await self.client.get_entity(config.resolve(bot))
+
+        tombol = []
+        for m in pesan:
+            mk = m.reply_markup
+            if not mk or not getattr(mk, "rows", None):
+                continue
+            for i, row in enumerate(mk.rows):
+                for j, b in enumerate(row.buttons):
+                    d = (getattr(b, "data", None) or b"").decode("utf8", "replace")
+                    if pola in d.lower():
+                        tombol.append((m, i, j, d))
+        if not tombol:
+            return []
+
+        log.info("%d kandidat ditemukan di %s, ditelusuri maks %d",
+                 len(tombol), bot, maks)
+        terkumpul: list[Message] = []
+        for ke, (msg, baris, kolom, data) in enumerate(tombol[:maks], 1):
+            def _isi(m: Message) -> bool:
+                t = (m.text or "")
+                if any(x in t.lower() for x in markers):
+                    return False
+                return bool(t.strip()) or m.media is not None
+
+            async def _klik(_m=msg, _b=baris, _k=kolom, _d=data):
+                await _m.click(_b, _k)
+                log.info("-> kandidat %d/%d: %s", ke, min(len(tombol), maks), _d)
+
+            hasil = await self._tunggu(entity, _isi, step_timeout, aksi=_klik)
+            if not hasil:
+                log.warning("kandidat %s tidak menjawab", data)
+                continue
+            terkumpul += hasil
+            if linger:
+                await asyncio.sleep(linger)      # beri jeda antar kandidat
+        return terkumpul
+
     async def download_media(self, msg: Message) -> tuple[bytes, str] | None:
         """Unduh media (foto) dari sebuah pesan. Kembalikan (bytes, content_type)
         atau None kalau pesan tak bermedia / bukan foto."""
