@@ -134,6 +134,12 @@ class PasswordReq(BaseModel):
     password: str
 
 
+class UserLogReq(BaseModel):
+    username: str
+    event: str
+    detail: dict | None = None
+
+
 @app.post("/auth/login", dependencies=[Depends(auth)])
 async def auth_login(req: LoginReq):
     """Verifikasi login aplikasi ke tabel app_users. Dipanggil server-to-server
@@ -194,6 +200,22 @@ async def app_session_upsert(req: SessionUpsertReq):
 @app.get("/app/sessions", dependencies=[Depends(auth)])
 async def app_session_list(user: str = Query(...)):
     return {"ok": True, "items": await db.app_session_list(state["conn"], user)}
+
+
+@app.post("/app/logs", dependencies=[Depends(auth)])
+async def app_logs_create(req: UserLogReq):
+    """Catat satu aktivitas user (login/logout/search/export dsb)."""
+    row = await db.log_insert(state["conn"], req.username.strip(), req.event, req.detail)
+    return {"ok": True, "id": row}
+
+
+@app.get("/app/logs", dependencies=[Depends(auth)])
+async def app_logs_list(username: str | None = Query(None),
+                        limit: int = Query(200, ge=1, le=1000)):
+    """Log aktivitas. `username` opsional: kalau diisi filter satu user;
+    tanpa username = SEMUA user (dipakai menu Log admin)."""
+    items = await db.log_list(state["conn"], username=username, limit=limit)
+    return {"ok": True, "items": items}
 
 
 @app.get("/app/cached", dependencies=[Depends(auth)])

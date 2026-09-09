@@ -160,6 +160,51 @@ async def app_session_clear(conn, username: str) -> int:
         return cur.rowcount
 
 
+# ------------------------------------------------------------- user_logs
+
+async def log_insert(conn, username: str, event: str,
+                     detail: dict | None = None) -> int:
+    async with conn.cursor() as cur:
+        await cur.execute(
+            """
+            INSERT INTO user_logs (username, event, detail)
+            VALUES (%s, %s, %s)
+            RETURNING id
+            """,
+            (username, event, Jsonb(detail) if detail else None),
+        )
+        return (await cur.fetchone())["id"]
+
+
+async def log_list(conn, username: str | None = None, limit: int = 200) -> list[dict]:
+    """Log aktivitas, terbaru dulu. `username=None` = semua user (admin)."""
+    async with conn.cursor() as cur:
+        if username:
+            await cur.execute(
+                """
+                SELECT id, username, event, detail, created_at
+                  FROM user_logs
+                 WHERE username = %s
+                 ORDER BY created_at DESC, id DESC
+                 LIMIT %s
+                """,
+                (username, limit),
+            )
+        else:
+            await cur.execute(
+                """
+                SELECT id, username, event, detail, created_at
+                  FROM user_logs
+                 ORDER BY created_at DESC, id DESC
+                 LIMIT %s
+                """,
+                (limit,),
+            )
+        rows = await cur.fetchall()
+    return [{**r, "detail": r.get("detail"), "created_at": str(r["created_at"])}
+            for r in rows]
+
+
 # ------------------------------------------------------------------- media
 
 async def store_media(conn, data: bytes, content_type: str, *, bot: str, cmd: str,
