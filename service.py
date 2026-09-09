@@ -245,6 +245,10 @@ HALAMAN_MAKS = int(__import__("os").getenv("HALAMAN_MAKS", "0"))
 PHOTO_CMDS = {"/foto", "/nik", "/kk", "/paspor", "/pasporkerja", "/imigrasi"}
 PHOTO_LINGER = 8.0
 
+# Jeda senyap untuk alur menu biasa: jawaban dianggap selesai kalau tidak ada
+# pesan baru selama sekian detik (lihat MAKS_SENYAP di connector.py).
+LINGER_MENU = float(__import__("os").getenv("LINGER_MENU", "5"))
+
 
 async def _ask_and_parse(tg, bot: str, cmd: str, value: str,
                          timeout: float | None, collect: int) -> dict:
@@ -259,9 +263,12 @@ async def _ask_and_parse(tg, bot: str, cmd: str, value: str,
         fields = records[0] if len(records) == 1 else (records or None)
         return relates_to_request(value, [txt], fields, cmd) is not False
 
-    linger = PHOTO_LINGER if cmd in PHOTO_CMDS else 0
-    batas = timeout if timeout is not None else FINAL_TIMEOUT
+    # Bot baru sering memecah jawaban jadi beberapa pesan (bagian A-F pada
+    # NIK BY PHONE, foto yang menyusul teks). Jadi SEMUA alur menu menunggu
+    # senyap dulu, bukan hanya command berfoto.
     menu = routes.menu_label(bot, cmd)
+    linger = PHOTO_LINGER if cmd in PHOTO_CMDS else (LINGER_MENU if menu else 0)
+    batas = timeout if timeout is not None else FINAL_TIMEOUT
     # Tunggu jawaban asli (non-ack) yang benar-benar milik permintaan ini;
     # jawaban nyasar dilewati sampai jawaban yang tepat datang / timeout.
     choice = routes.submenu_choice(bot, cmd)

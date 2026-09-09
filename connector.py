@@ -16,6 +16,10 @@ import config
 
 log = logging.getLogger("artemis.telegram")
 
+# Kelipatan `linger` sebagai batas atas menunggu jawaban bersection, supaya
+# bot yang terus mengirim tidak menahan antrian tanpa akhir.
+MAKS_SENYAP = 6
+
 
 class BatasHarian(RuntimeError):
     """Kuota harian fitur di bot habis — kondisi sementara, bukan kegagalan."""
@@ -113,8 +117,25 @@ class TelegramConnector:
                             timeout, target, len(replies))
             # Foto (mis. E-KTP) sering menyusul sebagai pesan terpisah setelah
             # teks jawaban. Tunggu sebentar untuk menangkapnya.
+            # Tunggu sampai bot BENAR-BENAR berhenti mengirim, bukan sekadar
+            # tidur sekian detik.
+            #
+            # Sebagian fitur menjawab dengan LAPORAN BERSECTION yang dipecah
+            # jadi banyak pesan (NIK BY PHONE: bagian A sampai F — MSISDN,
+            # DATA ASET, DATA PENDUKUNG — plus foto). wait_final berhenti di
+            # pesan pertama, jadi tanpa ini hanya potongan pertama yang
+            # tersimpan; sisanya hilang dan hasilnya tercatat not_found.
             if linger > 0 and done.is_set():
-                await asyncio.sleep(linger)
+                batas_total = asyncio.get_event_loop().time() + linger * MAKS_SENYAP
+                while True:
+                    jumlah = len(replies)
+                    await asyncio.sleep(linger)
+                    if len(replies) == jumlah:
+                        break            # tidak ada pesan baru selama `linger`
+                    if asyncio.get_event_loop().time() >= batas_total:
+                        log.warning("bot %s masih mengirim setelah %.0fs; dihentikan",
+                                    target, linger * MAKS_SENYAP)
+                        break
         finally:
             self.client.remove_event_handler(_handler)
 
