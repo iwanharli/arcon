@@ -731,6 +731,20 @@ baris yatim itu **menahan insert baru** yang isinya sama. Terbukti pada
 Sekarang `ON DELETE CASCADE` untuk `profile_records`, `profile_phones`, dan
 `profile_vehicles` — sesuai rancangan bahwa lapis 2 adalah turunan lapis 1.
 
+### Masa berlaku cache
+
+Hasil ber-status `found` disajikan ulang dari `bot_query_cache` tanpa menyentuh
+Telegram — hemat kuota, tapi tanpa batas umur ia tidak pernah kedaluwarsa:
+hasil hari ini akan terus dijawab berbulan-bulan kemudian, dan data yang
+berubah (registrasi nomor, alamat) disajikan basi tanpa pengguna tahu.
+
+`CACHE_HARI` (default **30**) membatasinya; `0` mematikan batas. Baris yang
+lebih tua ditembak ulang ke bot dan hasilnya menimpa baris lama.
+
+Tiga syarat lain tetap berlaku: hanya status `found`, hanya command
+non-volatile (`/track` tidak pernah dari cache karena lokasi berubah), dan
+`bot_username` harus cocok dengan bot yang aktif.
+
 ### Jaminan penyimpanan
 
 Dua lapis, dengan jaminan berbeda:

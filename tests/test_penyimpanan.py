@@ -265,3 +265,32 @@ def test_nama_field_berulang_jadi_record_baru():
     rec, _ = P.parse_reply(teks)
     assert len(rec) == 5, f"kandidat menyusut jadi {len(rec)}"
     assert len({r["nik"] for r in rec}) == 5, "NIK antar kandidat tertimpa"
+
+
+async def test_cache_kedaluwarsa_ditembak_ulang(conn, nilai):
+    """Hasil 'found' yang lebih tua dari CACHE_HARI tidak boleh disajikan lagi.
+
+    Tanpa batas umur, hasil hari ini terus dijawab berbulan-bulan kemudian dan
+    data yang berubah (registrasi nomor, alamat) disajikan basi tanpa pengguna
+    tahu.
+    """
+    import db as D
+
+    qid = await D.store_result(conn, "bot1", "/nikbyphone", nilai, "found",
+                               fields={"nama": nilai})
+    assert await D.lookup(conn, "bot1", "/nikbyphone", nilai), "baris baru harus dari cache"
+
+    # tuakan barisnya melewati ambang
+    async with conn.cursor() as cur:
+        await cur.execute(
+            "UPDATE bot_query_cache SET tested_at = now() - "
+            "((%s + 1) * INTERVAL '1 day') WHERE id = %s", (D.CACHE_HARI, qid))
+    assert await D.lookup(conn, "bot1", "/nikbyphone", nilai) is None, (
+        "baris kedaluwarsa masih disajikan dari cache")
+
+    # tepat di dalam ambang harus tetap dipakai
+    async with conn.cursor() as cur:
+        await cur.execute(
+            "UPDATE bot_query_cache SET tested_at = now() - "
+            "((%s - 1) * INTERVAL '1 day') WHERE id = %s", (D.CACHE_HARI, qid))
+    assert await D.lookup(conn, "bot1", "/nikbyphone", nilai) is not None
