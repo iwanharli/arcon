@@ -30,6 +30,7 @@ class Route(NamedTuple):
     volatile: bool       # True = jangan pakai cache walau status 'found'
     menu: str | None = None   # label ReplyKeyboard; None = dialek command
     choice: str | None = None  # callback data tombol submenu (alur 3 langkah)
+    berkas: bool = False       # True = langkah terakhir mengirim FOTO, bukan teks
 
 
 def _p(target="profiles", kind=None, volatile=False, menu=None, choice=None):
@@ -81,6 +82,13 @@ ROUTES: dict[tuple[str, str], Route] = {
     ("bot1", "/mapping"):    Route(N.normalize_device, "records", "device", True, "MAPPING AREA"),
     ("bot1", "/digital"):    Route(N.normalize_raw, "records", "data_digital", False, "DATA DIGITAL"),
     ("bot1", "/datacenter"): Route(N.normalize_raw, "records", "data_center", False, "DATA CENTER"),
+
+    # ------------------------------------------------ bot1: input berupa FOTO
+    # FR SOCIAL MEDIA meminta "kirim foto wajah yang ingin dicari".
+    # (Menu FACE RECOGNITION hanya menampilkan CONTOH UPLOAD FOTO, bukan
+    # pencarian — sengaja tidak dirutekan.)
+    ("bot1", "/fr"): Route(N.normalize_person, "records", "face", False,
+                           "\U0001F525 FR SOCIAL MEDIA", None, True),
 
     # ------------------------------------------------- bot1: alur TIGA langkah
     # menu -> klik tombol submenu (callback data di kolom `choice`) -> nilai.
@@ -292,6 +300,12 @@ def menu_label(bot: str, cmd: str) -> str | None:
     """Label ReplyKeyboard untuk command ini, None kalau dialek command."""
     route = ROUTES.get((bot, cmd))
     return route.menu if route else None
+
+
+def butuh_berkas(bot: str, cmd: str) -> bool:
+    """True kalau langkah terakhir command ini mengirim foto, bukan teks."""
+    route = ROUTES.get((bot, cmd))
+    return bool(route and route.berkas)
 
 
 def submenu_choice(bot: str, cmd: str) -> str | None:

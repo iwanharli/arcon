@@ -22,7 +22,7 @@ import logging
 import os
 from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI, Header, HTTPException, Query
+from fastapi import Depends, FastAPI, Header, HTTPException, Query, File, Form, UploadFile
 from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel, Field
 
@@ -32,6 +32,9 @@ import db
 import jobs
 import normalize as N
 import routes
+
+# Batas ukuran foto yang diterima untuk pencarian berbasis gambar.
+MAKS_BERKAS = 8 * 1024 * 1024
 from connector import TelegramConnector
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -344,6 +347,41 @@ async def search(bot: str, req: SearchRequest):
     job = await jobs.enqueue(conn, bot, req.cmd, req.value,
                              requested_by=req.requested_by, priority=req.priority,
                              force=req.force)
+    posisi = await jobs.queue_position(conn, str(job["job_id"]))
+    return _to_response(job, posisi)
+
+
+@app.post("/search/{bot}/file", response_model=JobResponse, dependencies=[Depends(auth)])
+async def search_file(bot: str, cmd: str = Form(...), file: UploadFile = File(...),
+                      requested_by: str | None = Form(None),
+                      priority: int = Form(0)):
+    """Pencarian yang masukannya BERKAS (foto), bukan teks.
+
+    Dipakai FR SOCIAL MEDIA: bot meminta "kirim foto wajah yang ingin dicari".
+    Fotonya disimpan lebih dulu di media_blobs (dedup lewat sha256), lalu
+    id-nya dipakai sebagai `value` job — kolom search_jobs.value bertipe TEXT
+    dan tidak bisa menampung gambar.
+    """
+    if (err := jobs.validate(bot, cmd)):
+        raise HTTPException(status_code=400, detail=err)
+    if not routes.butuh_berkas(bot, cmd):
+        raise HTTPException(status_code=400,
+                            detail=f"command '{cmd}' tidak menerima berkas")
+
+    data = await file.read()
+    if not data:
+        raise HTTPException(status_code=400, detail="berkas kosong")
+    if len(data) > MAKS_BERKAS:
+        raise HTTPException(status_code=413,
+                            detail=f"berkas melebihi {MAKS_BERKAS // (1024*1024)} MB")
+    ctype = file.content_type or "image/jpeg"
+    if not ctype.startswith("image/"):
+        raise HTTPException(status_code=400, detail="hanya menerima gambar")
+
+    conn = state["conn"]
+    mid = await db.store_media(conn, data, ctype, bot=bot, cmd=cmd, value="(unggahan)")
+    job = await jobs.enqueue(conn, bot, cmd, mid, requested_by=requested_by,
+                             priority=priority)
     posisi = await jobs.queue_position(conn, str(job["job_id"]))
     return _to_response(job, posisi)
 

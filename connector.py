@@ -5,6 +5,7 @@ pesan ke bot lain. Session disimpan di file <TG_SESSION>.session sehingga
 login OTP hanya diperlukan sekali.
 """
 import asyncio
+import io
 import logging
 import re
 from typing import Awaitable, Callable, Iterable
@@ -67,7 +68,8 @@ class TelegramConnector:
                   collect: int = 1, wait_final: bool = False,
                   ack_markers: Iterable[str] = (),
                   accept: "Callable[[Message], bool] | None" = None,
-                  linger: float = 0) -> list[Message]:
+                  linger: float = 0,
+                  aksi=None) -> list[Message]:
         """Kirim pesan lalu tunggu balasan bot.
 
         Dua mode:
@@ -108,8 +110,13 @@ class TelegramConnector:
 
         self.client.add_event_handler(_handler, events.NewMessage(from_users=entity.id))
         try:
-            await self.client.send_message(entity, text)
-            log.info("-> %s: %s", target, text)
+            # `aksi` dipakai kalau yang dikirim bukan teks (mis. foto untuk
+            # FR SOCIAL MEDIA). Seluruh logika tunggu/ack/linger tetap sama.
+            if aksi is not None:
+                await aksi(entity)
+            else:
+                await self.client.send_message(entity, text)
+                log.info("-> %s: %s", target, text)
             try:
                 await asyncio.wait_for(done.wait(), timeout)
             except asyncio.TimeoutError:
@@ -462,6 +469,49 @@ class TelegramConnector:
             sebelumnya |= {(m.text or "") for m in halaman}
             terakhir = halaman
         return terkumpul
+
+    async def ask_file(self, bot: str, menu: str, data: bytes, nama: str = "foto.jpg", *,
+                       timeout: float | None = None,
+                       prompt_timeout: float = 60,
+                       ack_markers: Iterable[str] = (),
+                       accept: "Callable[[Message], bool] | None" = None,
+                       linger: float = 0) -> list[Message]:
+        """Alur menu yang meminta BERKAS, bukan teks.
+
+        FR SOCIAL MEDIA menjawab "Silakan kirim foto wajah yang ingin dicari",
+        jadi langkah terakhirnya mengirim gambar — bukan mengetik nilai.
+        Sebelumnya connector hanya bisa mengirim teks, sehingga fitur berbasis
+        foto tidak bisa dipakai sama sekali.
+        """
+        markers = tuple(ack_markers)
+        target = config.resolve(bot)
+        entity = await self.client.get_entity(target)
+
+        if await self.cancel_pending(bot):
+            await asyncio.sleep(2)
+
+        def _is_prompt(m: Message) -> bool:
+            t = (m.text or "").lower()
+            if any(x in t for x in markers):
+                return False
+            return any(p in t for p in self.PROMPT_MARKERS)
+
+        prompts = await self.ask(bot, menu, timeout=prompt_timeout, wait_final=True,
+                                 ack_markers=markers, accept=_is_prompt)
+        self._pastikan_kuota(bot, menu, prompts)
+        if not any(_is_prompt(m) for m in prompts):
+            log.warning("menu %r tidak meminta berkas; foto tetap dikirim", menu)
+
+        berkas = io.BytesIO(data)
+        berkas.name = nama
+
+        async def _kirim(entity):
+            await self.client.send_file(entity, berkas, force_document=False)
+            log.info("-> %s: kirim berkas %s (%d byte)", target, nama, len(data))
+
+        return await self.ask(bot, "", timeout=timeout, wait_final=True,
+                              ack_markers=markers, accept=accept, linger=linger,
+                              aksi=_kirim)
 
     async def download_media(self, msg: Message) -> tuple[bytes, str] | None:
         """Unduh media (foto) dari sebuah pesan. Kembalikan (bytes, content_type)
