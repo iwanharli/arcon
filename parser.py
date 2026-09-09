@@ -90,6 +90,10 @@ KV_RE = re.compile(r"^([A-Za-zÀ-ÿ0-9 /_.\-]{2,40}?)\s*:\s*(.*)$")
 # daftar, bukan bagian dari namanya. Kalau ikut terbawa, tiap butir jadi field
 # berbeda (n_1_desil, n_2_sembako) dan skemanya berubah-ubah mengikuti urutan.
 NOMOR_URUT_RE = re.compile(r"^\d{1,2}[.)]\s+")
+
+# Panjang maksimal baris tanpa titik dua yang boleh dianggap JUDUL kelompok.
+# Dibatasi supaya kalimat penjelasan panjang tetap jadi catatan, bukan judul.
+JUDUL_MAKS = 40
 EMOJI_RE = re.compile(r"[\U0001F000-\U0001FFFF☀-➿←-⇿⬀-⯿]")
 
 # Blok yang isinya cuma info pagination, bukan record data.
@@ -249,6 +253,27 @@ def parse_reply(text: str | None) -> tuple[list[dict], str | None]:
                 headers.append(None)
                 kunci_blok = set()
             kunci_blok.add(k)
+            blocks[-1].append(line)
+            continue
+
+        # Baris pendek TANPA titik dua = judul kelompok berikutnya.
+        #
+        # Bagian "PERBANDINGAN SUMBER" menuliskan satu field sebagai judul lalu
+        # nilainya per sumber:
+        #     NOMOR KK
+        #       DUKCAPIL_1: 327502...
+        #       WNI: 327502...
+        # Tanpa aturan ini judulnya hilang dan yang tersimpan hanya record
+        # bernama dukcapil_1/wni — pengguna melihat kartu berlabel aneh tanpa
+        # tahu field apa yang dibandingkan.
+        if len(stripped) <= JUDUL_MAKS and not DIVIDER_RE.match(stripped):
+            if blocks[-1]:
+                blocks.append([])
+                headers.append(None)
+                kunci_blok = set()
+            headers[-1] = strip_emoji(stripped) or None
+            continue
+
         blocks[-1].append(line)
 
     records, notes = [], []
