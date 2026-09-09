@@ -249,3 +249,19 @@ def test_hash_berkas_bukan_identitas():
     assert S._identifier(sha) is not None, "hash memang terbaca sebagai angka"
     assert routes.butuh_berkas("bot1", "/fr") is True, (
         "jalur berkas harus dikenali supaya pencocokan identitas dilewati")
+
+
+def test_nama_field_berulang_jadi_record_baru():
+    """Daftar kandidat tanpa pemisah harus terpecah per kandidat.
+
+    Hasil FACE RECOGNITION berupa pasangan Match Confidence/NIK yang berulang
+    tanpa garis pemisah. Tanpa pemecahan ini semuanya masuk satu dict dan
+    saling menimpa — 10 kandidat menyusut jadi 1.
+    """
+    import parser as P
+
+    teks = "\n".join(
+        f"Match Confidence: {90 - i}.00%\nNIK: 33050552119300{i:02d}" for i in range(5))
+    rec, _ = P.parse_reply(teks)
+    assert len(rec) == 5, f"kandidat menyusut jadi {len(rec)}"
+    assert len({r["nik"] for r in rec}) == 5, "NIK antar kandidat tertimpa"

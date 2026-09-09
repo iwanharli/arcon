@@ -207,6 +207,15 @@ def parse_reply(text: str | None) -> tuple[list[dict], str | None]:
 
     blocks: list[list[str]] = [[]]
     headers: list[str | None] = [None]
+    # Nama field yang BERULANG menandai record baru, walau tidak ada pemisah.
+    # Hasil FACE RECOGNITION berupa daftar kandidat polos:
+    #     Match Confidence: 89.12%
+    #     NIK: 3305055211930001
+    #     Match Confidence: 88.68%
+    #     NIK: 3302166106940002
+    # Tanpa ini semuanya masuk satu dict dan saling menimpa — 10 kandidat
+    # menyusut jadi 1, yang tersisa hanya yang terakhir.
+    kunci_blok: set[str] = set()
     for line in lines:
         stripped = bersihkan_baris(line)
         if not stripped:
@@ -214,6 +223,7 @@ def parse_reply(text: str | None) -> tuple[list[dict], str | None]:
         if DIVIDER_RE.match(stripped):
             blocks.append([])
             headers.append(None)
+            kunci_blok = set()
             continue
         m = RECORD_HEADER_RE.match(stripped)
         if m:
@@ -230,6 +240,15 @@ def parse_reply(text: str | None) -> tuple[list[dict], str | None]:
                     headers.append(None)
                 headers[-1] = strip_emoji(m.group(2)) or None
                 continue
+        m_kv = KV_RE.match(stripped)
+        if m_kv:
+            k = NOMOR_URUT_RE.sub("", strip_emoji(m_kv.group(1)).strip()).lower()
+            k = k.replace(" ", "_")
+            if k in kunci_blok:
+                blocks.append([])
+                headers.append(None)
+                kunci_blok = set()
+            kunci_blok.add(k)
         blocks[-1].append(line)
 
     records, notes = [], []
