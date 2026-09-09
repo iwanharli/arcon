@@ -294,3 +294,22 @@ async def test_cache_kedaluwarsa_ditembak_ulang(conn, nilai):
             "UPDATE bot_query_cache SET tested_at = now() - "
             "((%s - 1) * INTERVAL '1 day') WHERE id = %s", (D.CACHE_HARI, qid))
     assert await D.lookup(conn, "bot1", "/nikbyphone", nilai) is not None
+
+
+def test_judul_kelompok_perbandingan_sumber():
+    """Bagian "PERBANDINGAN SUMBER" menuliskan field sebagai JUDUL, nilainya
+    per sumber di bawahnya. Tanpa mengenali judul itu, yang tersimpan hanya
+    record bernama dukcapil_1/wni — pengguna melihat kartu berlabel aneh tanpa
+    tahu field apa yang dibandingkan.
+    """
+    import parser as P
+
+    teks = (
+        "NOMOR KK\n  DUKCAPIL_1: 3275022406080115\n  WNI: 3275020210180042\n\n"
+        "STATUS KAWIN\n  DUKCAPIL_1: BELUM KAWIN\n  WNI: BELUM KAWIN"
+    )
+    rec, _ = P.parse_reply(teks)
+    judul = [r.get("nama") for r in rec]
+    assert "NOMOR KK" in judul and "STATUS KAWIN" in judul, judul
+    kk = next(r for r in rec if r.get("nama") == "NOMOR KK")
+    assert kk["dukcapil_1"] == "3275022406080115"
