@@ -219,3 +219,17 @@ def test_nama_field_bertanda_hubung_dan_bernomor():
 
     assert N.slug_key("PBI-JK") == "pbi_jk"
     assert N.slug_key("MA-RI") == "ma_ri"
+
+
+def test_format_nomor_disamakan():
+    """08xxx dan 62xxx adalah nomor yang SAMA.
+
+    Bot menjawab dalam format 62xxx sedangkan pengguna mengetik 08xxx. Tanpa
+    penyamaan, bagian laporan yang memuat nomor kita sendiri dinilai "milik
+    permintaan lain" lalu dibuang — bagian A dan D pada NIK BY PHONE hilang.
+    """
+    import service as S
+
+    assert S.relates_to_request("08163666609", ["NOMOR : 628163666609"], None) is True
+    assert S.relates_to_request("08163666609", ["x"], {"nomor": "628163666609"}) is not False
+    assert S.relates_to_request("08163666609", ["x"], {"nomor": "628111111111"}) is False

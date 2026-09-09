@@ -60,6 +60,20 @@ def _jenis_identitas(digits: str) -> tuple:
 _MASK_RE = re.compile(r"[•*]")
 
 
+def _inti_hp(digits: str) -> str:
+    """Buang awalan negara/nol supaya format nomor bisa dibandingkan.
+
+    Bot menjawab dengan format 62xxx sedangkan pengguna mengetik 08xxx. Tanpa
+    penyamaan ini, bagian laporan yang memuat nomor kita SENDIRI justru
+    dianggap "milik permintaan lain" lalu dibuang — pada NIK BY PHONE, bagian
+    A (INFORMASI NOMOR TELEPON) dan D (MSISDN NIK) hilang karena ini.
+    """
+    d = re.sub(r"\D", "", digits or "")
+    if d.startswith("62"):
+        d = d[2:]
+    return d.lstrip("0")
+
+
 def _identifier(value: str) -> str | None:
     """Ambil bagian identitas dari input, mis. 'Joko#1' -> None, '3275...' -> digit."""
     inti = value.split("#")[0].strip()
@@ -97,8 +111,12 @@ def relates_to_request(value: str, texts: list[str], fields, cmd: str | None = N
     if not ident:
         return None                                   # input berupa nama/email
 
+    inti = _inti_hp(ident)
     if any(ident in (t or "") for t in texts):
         return True                                   # balasan menyebut input kita
+    # ...termasuk kalau format nomornya berbeda (08xxx vs 62xxx).
+    if len(inti) >= 8 and any(inti in re.sub(r"\D", "", t or "") for t in texts):
+        return True
 
     records = fields if isinstance(fields, list) else [fields] if fields else []
     sejenis = _jenis_identitas(ident)
@@ -113,14 +131,16 @@ def relates_to_request(value: str, texts: list[str], fields, cmd: str | None = N
                 continue
             d = re.sub(r"\D", "", sv)
             if d:
-                lain.add(d)
+                # nomor HP dibandingkan pada intinya saja (08xxx == 62xxx)
+                lain.add(_inti_hp(d) if sejenis is _ID_FIELDS_HP else d)
     if not lain:
         return None
     if cmd in KK_CMDS:
         # Balasan /kk & /biokk = kartu keluarga (banyak NIK anggota), tidak
         # menyebut No.KK input — tak bisa diverifikasi ke No.KK, terima saja.
         return None
-    if ident not in lain:
+    pembanding = _inti_hp(ident) if sejenis is _ID_FIELDS_HP else ident
+    if pembanding not in lain:
         return False                                  # identitas di balasan beda semua
     return None
 
