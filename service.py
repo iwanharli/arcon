@@ -182,7 +182,7 @@ async def query(tg, conn, bot: str, cmd: str, value: str, *,
                     "from_cache": True,
                 }
 
-    result = await _ask_and_parse(tg, bot, cmd, value, timeout, collect)
+    result = await _ask_and_parse(tg, bot, cmd, value, timeout, collect, conn)
 
     # Rate limit itu kondisi sementara — tunggu lalu coba sekali lagi, jangan
     # dicatat sebagai not_found (bisa mengunci hasil kosong ke cache).
@@ -191,7 +191,7 @@ async def query(tg, conn, bot: str, cmd: str, value: str, *,
         if wait:
             log.warning("kena rate limit, tunggu %ss lalu ulangi", wait + 1)
             await asyncio.sleep(wait + 1)
-            result = await _ask_and_parse(tg, bot, cmd, value, timeout, collect)
+            result = await _ask_and_parse(tg, bot, cmd, value, timeout, collect, conn)
 
     texts = result.pop("_texts", [])
     replies = result.pop("_replies", [])
@@ -290,7 +290,8 @@ LINGER_MENU = float(__import__("os").getenv("LINGER_MENU", "5"))
 
 
 async def _ask_and_parse(tg, bot: str, cmd: str, value: str,
-                         timeout: float | None, collect: int) -> dict:
+                         timeout: float | None, collect: int,
+                         conn_berkas=None) -> dict:
     def _accept(msg) -> bool:
         # Terima pesan non-ack ini sebagai jawaban kita, KECUALI terbukti milik
         # permintaan lain (identitas di dalamnya bentrok dengan `value`) atau
@@ -312,6 +313,22 @@ async def _ask_and_parse(tg, bot: str, cmd: str, value: str,
     # jawaban nyasar dilewati sampai jawaban yang tepat datang / timeout.
     choice = routes.submenu_choice(bot, cmd)
     try:
+        if routes.butuh_berkas(bot, cmd):
+            # `value` berisi id (sha256) berkas yang diunggah lewat
+            # POST /search/{bot}/file, bukan teks pencarian.
+            blob = await db.get_media(conn_berkas, value) if conn_berkas else None
+            if not blob:
+                return {"status": "no_response", "fields": None,
+                        "msg": f"berkas {value} tidak ditemukan",
+                        "_texts": [], "_replies": []}
+            replies = await tg.ask_file(bot, menu, bytes(blob["bytes"]),
+                                        timeout=batas, ack_markers=parser.ACK_MARKERS,
+                                        accept=_accept, linger=linger or LINGER_MENU)
+            good = [m for m in replies if not parser.is_preamble(m.text)]
+            out = parser.classify([m.text for m in good])
+            out["_texts"] = [m.text for m in good]
+            out["_replies"] = good
+            return out
         replies = await _kirim(tg, bot, cmd, value, menu, choice, batas, _accept, linger)
     except connector.BatasHarian as exc:
         # Kuota fitur habis: kondisi sementara, harus bisa dicoba lagi besok.

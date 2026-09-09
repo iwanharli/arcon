@@ -80,3 +80,33 @@ async def test_job_tersangkut_dikembalikan(conn, nilai):
     async with conn.cursor() as cur:
         await cur.execute("SELECT state FROM search_jobs WHERE job_id=%s", (job["job_id"],))
         assert (await cur.fetchone())["state"] == "queued"
+
+
+async def test_job_berkas_dedup_dan_validasi(conn, nilai):
+    """Pencarian berbasis foto memakai id media sebagai `value`.
+
+    search_jobs.value bertipe TEXT dan tidak bisa menampung gambar, jadi
+    fotonya disimpan di media_blobs lebih dulu (dedup lewat sha256) dan
+    id-nya yang masuk antrian.
+    """
+    import db
+    import routes
+
+    assert routes.butuh_berkas("bot1", "/fr") is True
+    assert routes.butuh_berkas("bot1", "/nikbyphone") is False
+
+    data = f"foto-palsu-{nilai}".encode()
+    mid = await db.store_media(conn, data, "image/jpeg",
+                               bot="bot1", cmd="/fr", value="(unggahan)")
+    mid2 = await db.store_media(conn, data, "image/jpeg",
+                                bot="bot1", cmd="/fr", value="(unggahan)")
+    assert mid == mid2, "foto identik harus ter-dedup"
+
+    blob = await db.get_media(conn, mid)
+    assert bytes(blob["bytes"]) == data
+
+    job = await jobs.enqueue(conn, "bot1", "/fr", mid)
+    assert job["value"] == mid
+    async with conn.cursor() as cur:
+        await cur.execute("DELETE FROM search_jobs WHERE value = %s", (mid,))
+        await cur.execute("DELETE FROM media_blobs WHERE id = %s", (mid,))
