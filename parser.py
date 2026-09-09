@@ -30,6 +30,7 @@ ACK_MARKERS = (
     # kunci: ..."): keduanya tersimpan sebagai not_found padahal hasil aslinya
     # menyusul beberapa detik kemudian.
     "mencari data", "sedang mencari", "sedang memuat", "memuat ",
+    "memproses", "sedang diproses",
     "⏳", "sedang menganalisis", "harap tunggu",
 )
 

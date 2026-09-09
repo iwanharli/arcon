@@ -479,10 +479,15 @@ class TelegramConnector:
                        linger: float = 0) -> list[Message]:
         """Alur menu yang meminta BERKAS, bukan teks.
 
-        FR SOCIAL MEDIA menjawab "Silakan kirim foto wajah yang ingin dicari",
-        jadi langkah terakhirnya mengirim gambar — bukan mengetik nilai.
-        Sebelumnya connector hanya bisa mengirim teks, sehingga fitur berbasis
-        foto tidak bisa dipakai sama sekali.
+        Urutannya PENTING. FACE RECOGNITION menampilkan contoh foto beserta
+        tombol mode (Deep/Quick/Multiple Match); modenya harus dipilih LEBIH
+        DULU, baru bot meminta "Silakan kirim foto wajah untuk dikenali".
+        Mengirim foto sebelum memilih mode membuat alurnya berputar: bot
+        menjawab dengan layar pemilihan mode lagi dan pencarian tak pernah
+        jalan.
+
+        `choice` dicocokkan lewat TEKS tombol, bukan callback data, supaya
+        tidak bergantung penamaan internal bot.
         """
         markers = tuple(ack_markers)
         target = config.resolve(bot)
@@ -497,58 +502,43 @@ class TelegramConnector:
                 return False
             return any(p in t for p in self.PROMPT_MARKERS)
 
+        # Langkah 1: buka menu.
         def _siap(m: Message) -> bool:
-            # FACE RECOGNITION menjawab dengan FOTO contoh, tanpa kalimat
-            # ajakan. Jadi pesan bermedia juga dianggap tanda "siap menerima".
+            if choice:
+                return self._cari_tombol([m], choice) is not None
             return _is_prompt(m) or m.media is not None
 
-        prompts = await self.ask(bot, menu, timeout=prompt_timeout, wait_final=True,
-                                 ack_markers=markers, accept=_siap)
-        self._pastikan_kuota(bot, menu, prompts)
-        if not any(_siap(m) for m in prompts):
-            log.warning("menu %r tidak meminta berkas; foto tetap dikirim", menu)
+        pesan = await self.ask(bot, menu, timeout=prompt_timeout, wait_final=True,
+                               ack_markers=markers, accept=_siap)
+        self._pastikan_kuota(bot, menu, pesan)
 
+        # Langkah 2 (opsional): pilih mode, lalu tunggu ajakan kirim foto.
+        if choice:
+            found = self._cari_tombol(pesan, choice)
+            if not found:
+                raise RuntimeError(
+                    f"mode {choice!r} tidak ditemukan di menu {menu!r} pada {bot}")
+            msg, baris, kolom = found
+
+            async def _klik():
+                await msg.click(baris, kolom)
+                log.info("-> %s: pilih mode %r", target, choice)
+
+            pesan = await self._tunggu(entity, _is_prompt, prompt_timeout, aksi=_klik)
+            if not any(_is_prompt(m) for m in pesan):
+                log.warning("mode %r tidak menghasilkan ajakan kirim foto", choice)
+
+        # Langkah terakhir: kirim fotonya.
         berkas = io.BytesIO(data)
         berkas.name = nama
 
-        async def _kirim(entity):
-            await self.client.send_file(entity, berkas, force_document=False)
+        async def _kirim(ent):
+            await self.client.send_file(ent, berkas, force_document=False)
             log.info("-> %s: kirim berkas %s (%d byte)", target, nama, len(data))
 
-        hasil = await self.ask(bot, "", timeout=timeout, wait_final=True,
-                               ack_markers=markers, accept=accept, linger=linger,
-                               aksi=_kirim)
-        if not choice:
-            return hasil
-
-        # FACE RECOGNITION tidak langsung mencari: setelah foto diterima ia
-        # meminta MODE ("FR 1 Deep Match / FR 2 Quick Match / FR 3 Multiple
-        # Match"). Tombolnya dicocokkan lewat TEKS, bukan callback data,
-        # supaya tidak bergantung pada penamaan internal bot.
-        found = self._cari_tombol(hasil, choice)
-        if not found:
-            log.warning("mode %r tidak ditemukan setelah foto dikirim di %s",
-                        choice, menu)
-            return hasil
-        msg, baris, kolom = found
-        entity2 = await self.client.get_entity(config.resolve(bot))
-
-        async def _klik():
-            await msg.click(baris, kolom)
-            log.info("-> %s: pilih mode %r", config.resolve(bot), choice)
-
-        def _selesai(m: Message) -> bool:
-            t = (m.text or "")
-            if any(x in t.lower() for x in markers):
-                return False
-            if accept is not None and not accept(m):
-                return False
-            return bool(t.strip()) or m.media is not None
-
-        lanjut = await self._tunggu(entity2, _selesai,
-                                    timeout if timeout is not None else 300,
-                                    aksi=_klik)
-        return hasil + lanjut
+        return await self.ask(bot, "", timeout=timeout, wait_final=True,
+                              ack_markers=markers, accept=accept, linger=linger,
+                              aksi=_kirim)
 
     async def download_media(self, msg: Message) -> tuple[bytes, str] | None:
         """Unduh media (foto) dari sebuah pesan. Kembalikan (bytes, content_type)
