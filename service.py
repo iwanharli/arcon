@@ -15,8 +15,10 @@ import asyncio
 import logging
 import re
 
+import connector
 import db
 import parser
+import routes
 
 log = logging.getLogger("artemis.service")
 
@@ -134,7 +136,10 @@ async def query(tg, conn, bot: str, cmd: str, value: str, *,
 
     await db.store_result(conn, bot, cmd, value, result["status"],
                           result["msg"], result["fields"],
-                          media=media_blobs or None)
+                          media=media_blobs or None,
+                          # teks mentah disimpan supaya perbaikan PARSER bisa
+                          # diputar ulang lewat rebuild.py tanpa memotong kuota
+                          raw_text="\n\n---\n\n".join(t for t in texts if t) or None)
     import hashlib
     media_urls = _media_urls([hashlib.sha256(b).hexdigest() for b, _ in media_blobs])
     return {**result, "media": media_urls, "from_cache": False}
@@ -152,10 +157,31 @@ def _media_urls(ids) -> list[str]:
 # aman — job berikutnya memang harus menunggu giliran.
 FINAL_TIMEOUT = float(__import__("os").getenv("FINAL_TIMEOUT", "300"))  # 5 menit
 
-# Command yang jawabannya bisa disertai foto (E-KTP dsb). Untuk ini kita
-# menunggu sebentar setelah teks jawaban agar pesan foto yang menyusul ikut
-# tertangkap.
-PHOTO_CMDS = {"/foto", "/photo", "/nik", "/bionik", "/kk", "/biokk", "/fr", "/siswa"}
+# Berapa halaman TAMBAHAN yang diikuti pada daftar hasil berpaginasi.
+#
+# Bot memotong daftar ("Menampilkan 1-5" dari 1.412 hasil, tombol "📄 1/283"),
+# jadi tanpa ini hanya halaman pertama yang tersimpan. Default 0 = perilaku
+# lama, karena belum diketahui apakah menekan Next ikut memotong kuota harian
+# per fitur — naikkan lewat env kalau kelengkapan data lebih penting.
+HALAMAN_MAKS = int(__import__("os").getenv("HALAMAN_MAKS", "0"))
+
+# Command yang jawabannya bisa disertai foto (E-KTP, foto paspor, dsb).
+# Untuk ini kita menunggu sebentar SETELAH teks jawaban, supaya pesan foto
+# yang menyusul sebagai pesan terpisah ikut tertangkap.
+#
+# Daftar lama masih berisi command bot lama (/bionik, /biokk, /photo, /fr,
+# /siswa) yang sudah tidak ada, sementara /pasporkerja — satu-satunya command
+# yang TERBUKTI mengirim foto (263 KB, image/jpeg) — justru tidak terdaftar.
+#
+# Catatan: `linger` hanya memengaruhi lama tunggu, bukan apakah foto diunduh;
+# _collect_media() tetap mengunduh media apa pun yang menyertai jawaban. Jadi
+# command di luar daftar ini masih bisa dapat foto, hanya berisiko terlewat
+# kalau fotonya datang beberapa detik setelah teks.
+#
+# BELUM LENGKAP: sebagian besar command kependudukan belum pernah menghasilkan
+# data (kuota harian habis saat pengujian), jadi daftar ini perlu ditinjau
+# ulang setelah /nik, /kk, /foto berhasil dijalankan.
+PHOTO_CMDS = {"/foto", "/nik", "/kk", "/paspor", "/pasporkerja", "/imigrasi"}
 PHOTO_LINGER = 8.0
 
 
@@ -163,28 +189,70 @@ async def _ask_and_parse(tg, bot: str, cmd: str, value: str,
                          timeout: float | None, collect: int) -> dict:
     def _accept(msg) -> bool:
         # Terima pesan non-ack ini sebagai jawaban kita, KECUALI terbukti milik
-        # permintaan lain (identitas di dalamnya bentrok dengan `value`).
+        # permintaan lain (identitas di dalamnya bentrok dengan `value`) atau
+        # cuma peringatan hukum pengantar yang mendahului hasil.
         txt = msg.text or ""
+        if parser.is_preamble(txt):
+            return False
         records, _ = parser.parse_reply(txt)
         fields = records[0] if len(records) == 1 else (records or None)
         return relates_to_request(value, [txt], fields) is not False
 
     linger = PHOTO_LINGER if cmd in PHOTO_CMDS else 0
+    batas = timeout if timeout is not None else FINAL_TIMEOUT
+    menu = routes.menu_label(bot, cmd)
     # Tunggu jawaban asli (non-ack) yang benar-benar milik permintaan ini;
     # jawaban nyasar dilewati sampai jawaban yang tepat datang / timeout.
-    replies = await tg.ask(
-        bot, f"{cmd} {value}".strip(),
-        timeout=timeout if timeout is not None else FINAL_TIMEOUT,
-        wait_final=True, ack_markers=parser.ACK_MARKERS, accept=_accept,
-        linger=linger,
-    )
-    # buang pesan yang jelas milik permintaan lain sebelum diklasifikasi
-    good = [m for m in replies if parser.is_ack(m.text) or _accept(m)]
+    choice = routes.submenu_choice(bot, cmd)
+    try:
+        replies = await _kirim(tg, bot, cmd, value, menu, choice, batas, _accept, linger)
+    except connector.BatasHarian as exc:
+        # Kuota fitur habis: kondisi sementara, harus bisa dicoba lagi besok.
+        # Jangan dijadikan kegagalan job maupun not_found.
+        log.warning("%s %s: batas harian fitur tercapai", bot, cmd)
+        return {"status": "queue_without_data", "msg": str(exc), "fields": None,
+                "_texts": [str(exc)], "_replies": []}
+
+    # buang preamble hukum & pesan milik permintaan lain sebelum diklasifikasi
+    # Ikuti paginasi kalau diminta: halaman berikutnya digabung sebagai
+    # balasan tambahan, lalu diurai bersama halaman pertama.
+    if HALAMAN_MAKS and replies:
+        try:
+            replies = replies + await tg.telusuri_halaman(
+                bot, replies, HALAMAN_MAKS, ack_markers=parser.ACK_MARKERS)
+        except Exception as exc:                       # noqa: BLE001
+            log.warning("%s %s: gagal menelusuri halaman: %r", bot, cmd, exc)
+
+    good = [m for m in replies
+            if not parser.is_preamble(m.text) and (parser.is_ack(m.text) or _accept(m))]
     texts = [m.text for m in good]
     out = parser.classify(texts)
     out["_texts"] = texts
     out["_replies"] = good
     return out
+
+
+async def _kirim(tg, bot, cmd, value, menu, choice, batas, _accept, linger):
+    """Pilih alur pengiriman sesuai dialek route."""
+    if menu and choice:
+        # Tiga langkah: menu -> tombol submenu -> nilai.
+        replies = await tg.ask_submenu(
+            bot, menu, choice, value, timeout=batas,
+            ack_markers=parser.ACK_MARKERS, accept=_accept, linger=linger,
+        )
+    elif menu:
+        # Bot menu-driven: label menu dulu, baru nilainya (lihat routes.py).
+        replies = await tg.ask_menu(
+            bot, menu, value, timeout=batas,
+            ack_markers=parser.ACK_MARKERS, accept=_accept, linger=linger,
+        )
+    else:
+        replies = await tg.ask(
+            bot, f"{cmd} {value}".strip(), timeout=batas,
+            wait_final=True, ack_markers=parser.ACK_MARKERS, accept=_accept,
+            linger=linger,
+        )
+    return replies
 
 
 async def _collect_media(tg, replies: list) -> list[tuple[bytes, str]]:

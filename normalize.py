@@ -27,8 +27,17 @@ GENDER_MAP = {
     "PEREMPUAN": "PEREMPUAN", "WANITA": "PEREMPUAN",
 }
 
-# Field yang bukan data (pagination, echo input ter-mask, link turunan).
-DROP_KEYS = {"page", "total_tampil", "target", "maps"}
+# Field yang bukan data: pagination, ringkasan pencarian, echo input, dan
+# contoh format. Bot baru menempelkan ini di hampir semua balasan
+# ("Keyword: Indomie", "Total Ditemukan: 1,412 hasil", "Menampilkan: 1-5"),
+# dan tanpa dibuang ia ikut tersimpan sebagai atribut, membuat record kotor.
+DROP_KEYS = {
+    "page", "total_tampil", "target", "maps",
+    "keyword", "kata_kunci", "filter", "halaman", "menampilkan",
+    "total_ditemukan", "total_hasil", "jumlah_hasil", "ditemukan",
+    "contoh", "default", "maksimal", "sumber", "source",
+    "you_said", "https", "google_maps", "foto",
+}
 
 # Nama field mentah -> nama kolom kanonik.
 FIELD_ALIASES = {
@@ -38,6 +47,25 @@ FIELD_ALIASES = {
     "ibu": "nama_ibu",
     "tempat_lahir": "tempat_lahir",
     "jk": "jenis_kelamin",
+    # Nama field yang benar-benar dipakai teamkhususantibanditbot, diambil
+    # dari balasan nyata (bulk run 9 Sep 2026) — bukan tebakan.
+    "kota/kabupaten": "kab_kota",
+    "desa/kelurahan": "kel_desa",
+    "nama_lengkap": "nama",
+    "gender": "jenis_kelamin",
+    "tgl._lahir": "tanggal_lahir",
+    "tgl_lahir": "tanggal_lahir",
+    "tanggal_lahir": "tanggal_lahir",
+    "tempat/tgl_lahir": "ttl",
+    "no._paspor": "nomor_paspor",
+    "nomor_paspor": "nomor_paspor",
+    "alamat_lengkap": "alamat",
+    "berlaku_s_d": "berlaku_sampai",
+    "berlaku_hingga": "berlaku_sampai",
+    "no_sertifikat": "nomor_sertifikat",
+    "no_paspor": "nomor_paspor",
+    "no_anggota": "nomor_anggota",
+    "tgl_daftar": "tanggal_daftar",
 }
 
 # Kolom yang diakui tabel profiles.
@@ -47,6 +75,46 @@ PROFILE_COLUMNS = {
     "kel_desa", "kecamatan", "kab_kota", "provinsi",
     "nik_ayah", "nama_ayah", "nik_ibu", "nama_ibu",
 }
+
+
+# ---------------------------------------------------------------- nama key
+
+# Nama key harus konsisten supaya JSON tiap command bisa dipakai program lain:
+# ^[a-z][a-z0-9_]*$ — tanpa tanda baca, tanpa spasi, tidak diawali angka.
+#
+# Balasan bot menghasilkan nama seperti "Berlaku s/d", "No. Sertifikat",
+# "Lembaga/Perusahaan", dan bahkan key berupa tahun saja ("2013") untuk daftar
+# penghargaan. Tanpa penyeragaman, konsumen JSON harus menebak ejaannya.
+_KEY_BUANG_RE = re.compile(r"[^\w\s/]+")     # titik, koma, kurung, dsb.
+_KEY_PISAH_RE = re.compile(r"[\s/\\-]+")     # spasi, garis miring, strip
+_KEY_RAPI_RE = re.compile(r"_{2,}")
+
+# Key yang isinya menempel ke nilainya, mis. "tanggal_9_sep_2026_pukul_20".
+# Panjang + banyak segmen + memuat angka = hampir pasti kalimat, bukan nama
+# field; disatukan supaya skema tiap command tetap stabil antar pemanggilan.
+_KEY_DINAMIS_MIN_SEGMEN = 4
+_KEY_DINAMIS_MIN_PANJANG = 24
+
+
+def slug_key(key: str) -> str:
+    """Nama field mentah -> slug yang konsisten dan aman dipakai program."""
+    k = _KEY_BUANG_RE.sub("", str(key).strip().lower())
+    k = _KEY_PISAH_RE.sub("_", k)
+    k = _KEY_RAPI_RE.sub("_", k).strip("_")
+    if not k:
+        return ""
+    if k.isdigit():                       # "2013" -> "tahun_2013"
+        return f"tahun_{k}"
+    if k[0].isdigit():
+        return f"n_{k}"
+    return k
+
+
+def key_dinamis(key: str) -> bool:
+    """True kalau nama key-nya ikut berubah tiap balasan (bukan nama field)."""
+    return (len(key) >= _KEY_DINAMIS_MIN_PANJANG
+            and key.count("_") >= _KEY_DINAMIS_MIN_SEGMEN
+            and any(c.isdigit() for c in key))
 
 
 # ---------------------------------------------------------------- primitives
@@ -259,7 +327,7 @@ def normalize_person(raw: dict) -> dict:
 
     out: dict = {}
     for key, value in raw.items():
-        key = FIELD_ALIASES.get(key.lower(), key.lower())
+        key = FIELD_ALIASES.get(slug_key(key), slug_key(key))
         if key in DROP_KEYS:
             continue
 
@@ -426,3 +494,40 @@ def normalize_vehicle(raw: dict) -> dict:
         "alamat": norm_text(raw.get("alamat")),
     }
     return {k: v for k, v in out.items() if v is not None}
+
+
+def normalize_raw(raw: dict) -> dict:
+    """Simpan apa adanya — untuk data yang BUKAN tentang orang.
+
+    normalize_person bersifat shape-agnostic: ia hanya mengenali nama kolom
+    tabel profiles. Untuk hasil seperti CEKPOS IP (Type, Country, ASN, ISP),
+    prakiraan cuaca, atau nomor resi, tidak ada satu pun kolom yang cocok
+    sehingga ia mengembalikan {} dan seluruh hasil hilang dari
+    profile_records — terbukti pada /ip: 32 field terurai, 0 tersimpan.
+
+    Fungsi ini menahan semua field mentah (kolom `data` di profile_records
+    memang jsonb), cuma membuang yang kosong dan yang ter-mask.
+    """
+    if not raw:
+        return {}
+    out = {}
+    lain = {}
+    for key, value in raw.items():
+        k = slug_key(key)
+        k = FIELD_ALIASES.get(k, k)
+        if not k or k in DROP_KEYS:
+            continue                      # metadata pencarian, bukan atribut
+        if key_dinamis(k):
+            # nama key-nya ikut berubah tiap balasan -> kumpulkan terpisah
+            # supaya bentuk JSON per command tetap stabil.
+            v = norm_text(value) if isinstance(value, str) else value
+            if v not in (None, "", "-"):
+                lain[k] = v
+            continue
+        v = norm_text(value) if isinstance(value, str) else value
+        if v in (None, "", "-"):
+            continue
+        out[k] = v
+    if lain:
+        out["lainnya"] = lain
+    return out

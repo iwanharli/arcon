@@ -1,0 +1,2290 @@
+{
+  "bot1/alkesjenis": {
+    "bot": "bot1",
+    "cmd": "/alkesjenis",
+    "menu": "DITIPIDEKSUS",
+    "submenu": [
+      "ditipideksus_produk_perusahaan",
+      "alkes_cat_6"
+    ],
+    "tabel": "records",
+    "kind": "perusahaan",
+    "volatile": false,
+    "normalizer": "normalize_raw",
+    "terverifikasi": true,
+    "status_terakhir": "found",
+    "atribut": [
+      "kategori",
+      "keterangan",
+      "nie",
+      "pendaftar",
+      "produk",
+      "produsen",
+      "status_nie",
+      "tipe"
+    ]
+  },
+  "bot1/alkesnie": {
+    "bot": "bot1",
+    "cmd": "/alkesnie",
+    "menu": "DITIPIDEKSUS",
+    "submenu": [
+      "ditipideksus_produk_perusahaan",
+      "alkes_cat_1"
+    ],
+    "tabel": "records",
+    "kind": "perusahaan",
+    "volatile": false,
+    "normalizer": "normalize_raw",
+    "terverifikasi": true,
+    "status_terakhir": "found",
+    "atribut": [
+      "kategori"
+    ]
+  },
+  "bot1/alkespendaftar": {
+    "bot": "bot1",
+    "cmd": "/alkespendaftar",
+    "menu": "DITIPIDEKSUS",
+    "submenu": [
+      "ditipideksus_produk_perusahaan",
+      "alkes_cat_3"
+    ],
+    "tabel": "records",
+    "kind": "perusahaan",
+    "volatile": false,
+    "normalizer": "normalize_raw",
+    "terverifikasi": true,
+    "status_terakhir": "found",
+    "atribut": [
+      "kategori",
+      "keterangan",
+      "nie",
+      "pendaftar",
+      "produk",
+      "produsen",
+      "status_nie",
+      "tipe"
+    ]
+  },
+  "bot1/alkesproduk": {
+    "bot": "bot1",
+    "cmd": "/alkesproduk",
+    "menu": "DITIPIDEKSUS",
+    "submenu": [
+      "ditipideksus_produk_perusahaan",
+      "alkes_cat_2"
+    ],
+    "tabel": "records",
+    "kind": "perusahaan",
+    "volatile": false,
+    "normalizer": "normalize_raw",
+    "terverifikasi": true,
+    "status_terakhir": "found",
+    "atribut": [
+      "kategori",
+      "keterangan",
+      "nie",
+      "pendaftar",
+      "produk",
+      "produsen",
+      "status_nie",
+      "tipe"
+    ]
+  },
+  "bot1/alkesprodusen": {
+    "bot": "bot1",
+    "cmd": "/alkesprodusen",
+    "menu": "DITIPIDEKSUS",
+    "submenu": [
+      "ditipideksus_produk_perusahaan",
+      "alkes_cat_5"
+    ],
+    "tabel": "records",
+    "kind": "perusahaan",
+    "volatile": false,
+    "normalizer": "normalize_raw",
+    "terverifikasi": true,
+    "status_terakhir": "found",
+    "atribut": [
+      "kategori",
+      "keterangan",
+      "nie",
+      "pendaftar",
+      "produk",
+      "produsen",
+      "status_nie",
+      "tipe"
+    ]
+  },
+  "bot1/alkestipe": {
+    "bot": "bot1",
+    "cmd": "/alkestipe",
+    "menu": "DITIPIDEKSUS",
+    "submenu": [
+      "ditipideksus_produk_perusahaan",
+      "alkes_cat_4"
+    ],
+    "tabel": "records",
+    "kind": "perusahaan",
+    "volatile": false,
+    "normalizer": "normalize_raw",
+    "terverifikasi": true,
+    "status_terakhir": "found",
+    "atribut": [
+      "kategori",
+      "keterangan",
+      "nie",
+      "pendaftar",
+      "produk",
+      "produsen",
+      "status_nie",
+      "tipe"
+    ]
+  },
+  "bot1/bank": {
+    "bot": "bot1",
+    "cmd": "/bank",
+    "menu": "DATA BANK",
+    "submenu": [],
+    "tabel": "records",
+    "kind": "bank",
+    "volatile": false,
+    "normalizer": "normalize_person",
+    "terverifikasi": false,
+    "status_terakhir": "not_found",
+    "atribut": []
+  },
+  "bot1/bca": {
+    "bot": "bot1",
+    "cmd": "/bca",
+    "menu": "DATA BANK",
+    "submenu": [
+      "bank_select:270"
+    ],
+    "tabel": "records",
+    "kind": "bank",
+    "volatile": false,
+    "normalizer": "normalize_person",
+    "terverifikasi": false,
+    "status_terakhir": null,
+    "atribut": []
+  },
+  "bot1/bjbsyariah": {
+    "bot": "bot1",
+    "cmd": "/bjbsyariah",
+    "menu": "DATA BANK",
+    "submenu": [
+      "bank_select:273"
+    ],
+    "tabel": "records",
+    "kind": "bank",
+    "volatile": false,
+    "normalizer": "normalize_person",
+    "terverifikasi": false,
+    "status_terakhir": null,
+    "atribut": []
+  },
+  "bot1/blue": {
+    "bot": "bot1",
+    "cmd": "/blue",
+    "menu": "DATA BANK",
+    "submenu": [
+      "bank_select:280"
+    ],
+    "tabel": "records",
+    "kind": "bank",
+    "volatile": false,
+    "normalizer": "normalize_person",
+    "terverifikasi": false,
+    "status_terakhir": null,
+    "atribut": []
+  },
+  "bot1/bni": {
+    "bot": "bot1",
+    "cmd": "/bni",
+    "menu": "DATA BANK",
+    "submenu": [
+      "bank_select:272"
+    ],
+    "tabel": "records",
+    "kind": "bank",
+    "volatile": false,
+    "normalizer": "normalize_person",
+    "terverifikasi": false,
+    "status_terakhir": null,
+    "atribut": []
+  },
+  "bot1/bpom": {
+    "bot": "bot1",
+    "cmd": "/bpom",
+    "menu": "DITTIPIDTER",
+    "submenu": [
+      "dittipidter_bpom"
+    ],
+    "tabel": "records",
+    "kind": "perusahaan",
+    "volatile": false,
+    "normalizer": "normalize_raw",
+    "terverifikasi": true,
+    "status_terakhir": "found",
+    "atribut": [
+      "berlaku_sampai",
+      "jenis_pendaftaran",
+      "kategori",
+      "kemasan",
+      "merk",
+      "nama",
+      "nie",
+      "pendaftar",
+      "status",
+      "tanggal_daftar"
+    ]
+  },
+  "bot1/bri": {
+    "bot": "bot1",
+    "cmd": "/bri",
+    "menu": "DATA BANK",
+    "submenu": [
+      "bank_select:274"
+    ],
+    "tabel": "records",
+    "kind": "bank",
+    "volatile": false,
+    "normalizer": "normalize_person",
+    "terverifikasi": false,
+    "status_terakhir": null,
+    "atribut": []
+  },
+  "bot1/bsi": {
+    "bot": "bot1",
+    "cmd": "/bsi",
+    "menu": "DATA BANK",
+    "submenu": [
+      "bank_select:275"
+    ],
+    "tabel": "records",
+    "kind": "bank",
+    "volatile": false,
+    "normalizer": "normalize_person",
+    "terverifikasi": false,
+    "status_terakhir": null,
+    "atribut": []
+  },
+  "bot1/btpn": {
+    "bot": "bot1",
+    "cmd": "/btpn",
+    "menu": "DATA BANK",
+    "submenu": [
+      "bank_select:279"
+    ],
+    "tabel": "records",
+    "kind": "bank",
+    "volatile": false,
+    "normalizer": "normalize_person",
+    "terverifikasi": false,
+    "status_terakhir": null,
+    "atribut": []
+  },
+  "bot1/btscellid": {
+    "bot": "bot1",
+    "cmd": "/btscellid",
+    "menu": "DF TRACKING",
+    "submenu": [
+      "bts_type_cell_id"
+    ],
+    "tabel": "records",
+    "kind": "device",
+    "volatile": true,
+    "normalizer": "normalize_device",
+    "terverifikasi": true,
+    "status_terakhir": "queue_without_data",
+    "atribut": [
+      "address",
+      "azimuth",
+      "cell_id",
+      "cell_name",
+      "city",
+      "lac",
+      "lacci",
+      "latitude",
+      "longitude",
+      "mcc",
+      "mnc",
+      "network",
+      "plmn_id",
+      "province",
+      "site_id",
+      "site_name",
+      "status",
+      "sub_district"
+    ]
+  },
+  "bot1/btskoordinat": {
+    "bot": "bot1",
+    "cmd": "/btskoordinat",
+    "menu": "DF TRACKING",
+    "submenu": [
+      "bts_type_coordinate"
+    ],
+    "tabel": "records",
+    "kind": "device",
+    "volatile": true,
+    "normalizer": "normalize_device",
+    "terverifikasi": true,
+    "status_terakhir": "found",
+    "atribut": [
+      "lat"
+    ]
+  },
+  "bot1/btslac": {
+    "bot": "bot1",
+    "cmd": "/btslac",
+    "menu": "DF TRACKING",
+    "submenu": [
+      "bts_type_lac"
+    ],
+    "tabel": "records",
+    "kind": "device",
+    "volatile": true,
+    "normalizer": "normalize_device",
+    "terverifikasi": true,
+    "status_terakhir": "found",
+    "atribut": [
+      "lac"
+    ]
+  },
+  "bot1/celldum": {
+    "bot": "bot1",
+    "cmd": "/celldum",
+    "menu": "MONITORING TEKAB",
+    "submenu": [
+      "celldum_data"
+    ],
+    "tabel": "records",
+    "kind": "device",
+    "volatile": true,
+    "normalizer": "normalize_device",
+    "terverifikasi": false,
+    "status_terakhir": "not_found",
+    "atribut": []
+  },
+  "bot1/cimb": {
+    "bot": "bot1",
+    "cmd": "/cimb",
+    "menu": "DATA BANK",
+    "submenu": [
+      "bank_select:276"
+    ],
+    "tabel": "records",
+    "kind": "bank",
+    "volatile": false,
+    "normalizer": "normalize_person",
+    "terverifikasi": false,
+    "status_terakhir": null,
+    "atribut": []
+  },
+  "bot1/cuaca": {
+    "bot": "bot1",
+    "cmd": "/cuaca",
+    "menu": "DATA BMKG",
+    "submenu": [
+      "bmkg_prakiraan_cuaca"
+    ],
+    "tabel": "records",
+    "kind": "bmkg",
+    "volatile": true,
+    "normalizer": "normalize_raw",
+    "terverifikasi": false,
+    "status_terakhir": "found",
+    "atribut": []
+  },
+  "bot1/dana": {
+    "bot": "bot1",
+    "cmd": "/dana",
+    "menu": "DOMPET DIGITAL",
+    "submenu": [
+      "ewallet_pick_DANA"
+    ],
+    "tabel": "records",
+    "kind": "dompet_digital",
+    "volatile": true,
+    "normalizer": "normalize_person",
+    "terverifikasi": false,
+    "status_terakhir": "queue_without_data",
+    "atribut": []
+  },
+  "bot1/datacenter": {
+    "bot": "bot1",
+    "cmd": "/datacenter",
+    "menu": "DATA CENTER",
+    "submenu": [],
+    "tabel": "records",
+    "kind": "data_center",
+    "volatile": false,
+    "normalizer": "normalize_raw",
+    "terverifikasi": true,
+    "status_terakhir": "found",
+    "atribut": [
+      "hasil_pencarian_untuk",
+      "total_database"
+    ]
+  },
+  "bot1/digital": {
+    "bot": "bot1",
+    "cmd": "/digital",
+    "menu": "DATA DIGITAL",
+    "submenu": [],
+    "tabel": "records",
+    "kind": "data_digital",
+    "volatile": false,
+    "normalizer": "normalize_raw",
+    "terverifikasi": false,
+    "status_terakhir": "found",
+    "atribut": []
+  },
+  "bot1/djp": {
+    "bot": "bot1",
+    "cmd": "/djp",
+    "menu": "DATA DJP",
+    "submenu": [],
+    "tabel": "records",
+    "kind": "perusahaan",
+    "volatile": false,
+    "normalizer": "normalize_raw",
+    "terverifikasi": false,
+    "status_terakhir": "queue_without_data",
+    "atribut": []
+  },
+  "bot1/dpd": {
+    "bot": "bot1",
+    "cmd": "/dpd",
+    "menu": "DATA PEMERINTAH",
+    "submenu": [
+      "pemerintah_sub_dpd",
+      "dpd_sub_cari_nama"
+    ],
+    "tabel": "records",
+    "kind": "pemerintah",
+    "volatile": false,
+    "normalizer": "normalize_person",
+    "terverifikasi": false,
+    "status_terakhir": "queue_without_data",
+    "atribut": []
+  },
+  "bot1/dpo": {
+    "bot": "bot1",
+    "cmd": "/dpo",
+    "menu": "DATA DPO",
+    "submenu": [],
+    "tabel": "records",
+    "kind": "dpo",
+    "volatile": false,
+    "normalizer": "normalize_person",
+    "terverifikasi": false,
+    "status_terakhir": "not_found",
+    "atribut": []
+  },
+  "bot1/dpr": {
+    "bot": "bot1",
+    "cmd": "/dpr",
+    "menu": "DATA PEMERINTAH",
+    "submenu": [
+      "pemerintah_sub_dpr",
+      "dpr_sub_cari_nama"
+    ],
+    "tabel": "records",
+    "kind": "pemerintah",
+    "volatile": false,
+    "normalizer": "normalize_person",
+    "terverifikasi": true,
+    "status_terakhir": "found",
+    "atribut": [
+      "dapil",
+      "email",
+      "fraksi",
+      "id_anggota",
+      "nama",
+      "nomor_anggota",
+      "periode",
+      "singkatan_fraksi",
+      "tahun_2013",
+      "tahun_2015",
+      "tahun_2016",
+      "tahun_2019",
+      "tanggal_lahir",
+      "tempat_lahir"
+    ]
+  },
+  "bot1/dukcapil": {
+    "bot": "bot1",
+    "cmd": "/dukcapil",
+    "menu": "DATA DUKCAPIL",
+    "submenu": [],
+    "tabel": "profiles",
+    "kind": null,
+    "volatile": false,
+    "normalizer": "normalize_person",
+    "terverifikasi": false,
+    "status_terakhir": "queue_without_data",
+    "atribut": []
+  },
+  "bot1/ecommerce": {
+    "bot": "bot1",
+    "cmd": "/ecommerce",
+    "menu": "DATA ECOMMERCE",
+    "submenu": [
+      "ecommerce_search:name"
+    ],
+    "tabel": "records",
+    "kind": "ecommerce",
+    "volatile": false,
+    "normalizer": "normalize_person",
+    "terverifikasi": false,
+    "status_terakhir": "not_found",
+    "atribut": []
+  },
+  "bot1/ecommercehp": {
+    "bot": "bot1",
+    "cmd": "/ecommercehp",
+    "menu": "DATA ECOMMERCE",
+    "submenu": [
+      "ecommerce_search:phone"
+    ],
+    "tabel": "records",
+    "kind": "ecommerce",
+    "volatile": false,
+    "normalizer": "normalize_person",
+    "terverifikasi": false,
+    "status_terakhir": "not_found",
+    "atribut": []
+  },
+  "bot1/ecommercemail": {
+    "bot": "bot1",
+    "cmd": "/ecommercemail",
+    "menu": "DATA ECOMMERCE",
+    "submenu": [
+      "ecommerce_search:email"
+    ],
+    "tabel": "records",
+    "kind": "ecommerce",
+    "volatile": false,
+    "normalizer": "normalize_person",
+    "terverifikasi": false,
+    "status_terakhir": "not_found",
+    "atribut": []
+  },
+  "bot1/foto": {
+    "bot": "bot1",
+    "cmd": "/foto",
+    "menu": "BUKA FOTO",
+    "submenu": [],
+    "tabel": "records",
+    "kind": "foto",
+    "volatile": false,
+    "normalizer": "normalize_person",
+    "terverifikasi": false,
+    "status_terakhir": "queue_without_data",
+    "atribut": []
+  },
+  "bot1/gopay": {
+    "bot": "bot1",
+    "cmd": "/gopay",
+    "menu": "DOMPET DIGITAL",
+    "submenu": [
+      "ewallet_pick_GOPAY"
+    ],
+    "tabel": "records",
+    "kind": "dompet_digital",
+    "volatile": true,
+    "normalizer": "normalize_person",
+    "terverifikasi": false,
+    "status_terakhir": "queue_without_data",
+    "atribut": []
+  },
+  "bot1/guru": {
+    "bot": "bot1",
+    "cmd": "/guru",
+    "menu": "GURU UMUM",
+    "submenu": [],
+    "tabel": "records",
+    "kind": "guru",
+    "volatile": false,
+    "normalizer": "normalize_person",
+    "terverifikasi": false,
+    "status_terakhir": "not_found",
+    "atribut": []
+  },
+  "bot1/guruagama": {
+    "bot": "bot1",
+    "cmd": "/guruagama",
+    "menu": "GURU AGAMA",
+    "submenu": [
+      "guru_agama_agama:islam"
+    ],
+    "tabel": "records",
+    "kind": "guru",
+    "volatile": false,
+    "normalizer": "normalize_person",
+    "terverifikasi": false,
+    "status_terakhir": "queue_without_data",
+    "atribut": []
+  },
+  "bot1/guruagamabudha": {
+    "bot": "bot1",
+    "cmd": "/guruagamabudha",
+    "menu": "GURU AGAMA",
+    "submenu": [
+      "guru_agama_agama:budha"
+    ],
+    "tabel": "records",
+    "kind": "guru",
+    "volatile": false,
+    "normalizer": "normalize_person",
+    "terverifikasi": false,
+    "status_terakhir": "queue_without_data",
+    "atribut": []
+  },
+  "bot1/guruagamahindu": {
+    "bot": "bot1",
+    "cmd": "/guruagamahindu",
+    "menu": "GURU AGAMA",
+    "submenu": [
+      "guru_agama_agama:hindu"
+    ],
+    "tabel": "records",
+    "kind": "guru",
+    "volatile": false,
+    "normalizer": "normalize_person",
+    "terverifikasi": false,
+    "status_terakhir": "queue_without_data",
+    "atribut": []
+  },
+  "bot1/guruagamakatolik": {
+    "bot": "bot1",
+    "cmd": "/guruagamakatolik",
+    "menu": "GURU AGAMA",
+    "submenu": [
+      "guru_agama_agama:katolik"
+    ],
+    "tabel": "records",
+    "kind": "guru",
+    "volatile": false,
+    "normalizer": "normalize_person",
+    "terverifikasi": false,
+    "status_terakhir": "queue_without_data",
+    "atribut": []
+  },
+  "bot1/guruagamakonghucu": {
+    "bot": "bot1",
+    "cmd": "/guruagamakonghucu",
+    "menu": "GURU AGAMA",
+    "submenu": [
+      "guru_agama_agama:konghucu"
+    ],
+    "tabel": "records",
+    "kind": "guru",
+    "volatile": false,
+    "normalizer": "normalize_person",
+    "terverifikasi": false,
+    "status_terakhir": "queue_without_data",
+    "atribut": []
+  },
+  "bot1/guruagamakristen": {
+    "bot": "bot1",
+    "cmd": "/guruagamakristen",
+    "menu": "GURU AGAMA",
+    "submenu": [
+      "guru_agama_agama:kristen"
+    ],
+    "tabel": "records",
+    "kind": "guru",
+    "volatile": false,
+    "normalizer": "normalize_person",
+    "terverifikasi": false,
+    "status_terakhir": "queue_without_data",
+    "atribut": []
+  },
+  "bot1/halalpetugas": {
+    "bot": "bot1",
+    "cmd": "/halalpetugas",
+    "menu": "DITTIPIDTER",
+    "submenu": [
+      "dittipidter_halal",
+      "dittipidter_halal_petugas"
+    ],
+    "tabel": "records",
+    "kind": "perusahaan",
+    "volatile": false,
+    "normalizer": "normalize_raw",
+    "terverifikasi": false,
+    "status_terakhir": "found",
+    "atribut": []
+  },
+  "bot1/halalproduk": {
+    "bot": "bot1",
+    "cmd": "/halalproduk",
+    "menu": "DITTIPIDTER",
+    "submenu": [
+      "dittipidter_halalmui",
+      "halalmui_filter:nama_produk"
+    ],
+    "tabel": "records",
+    "kind": "perusahaan",
+    "volatile": false,
+    "normalizer": "normalize_raw",
+    "terverifikasi": true,
+    "status_terakhir": "found",
+    "atribut": [
+      "nama_produsen",
+      "nomor_sertifikat"
+    ]
+  },
+  "bot1/halalprodusen": {
+    "bot": "bot1",
+    "cmd": "/halalprodusen",
+    "menu": "DITTIPIDTER",
+    "submenu": [
+      "dittipidter_halalmui",
+      "halalmui_filter:nama_produsen"
+    ],
+    "tabel": "records",
+    "kind": "perusahaan",
+    "volatile": false,
+    "normalizer": "normalize_raw",
+    "terverifikasi": true,
+    "status_terakhir": "found",
+    "atribut": [
+      "nama_produsen",
+      "nomor_sertifikat"
+    ]
+  },
+  "bot1/halalsertifikat": {
+    "bot": "bot1",
+    "cmd": "/halalsertifikat",
+    "menu": "DITTIPIDTER",
+    "submenu": [
+      "dittipidter_halalmui",
+      "halalmui_filter:no_sertifikat"
+    ],
+    "tabel": "records",
+    "kind": "perusahaan",
+    "volatile": false,
+    "normalizer": "normalize_raw",
+    "terverifikasi": false,
+    "status_terakhir": "found",
+    "atribut": []
+  },
+  "bot1/hukum": {
+    "bot": "bot1",
+    "cmd": "/hukum",
+    "menu": "BASIS DATA HUKUM",
+    "submenu": [],
+    "tabel": "records",
+    "kind": "hukum",
+    "volatile": false,
+    "normalizer": "normalize_raw",
+    "terverifikasi": false,
+    "status_terakhir": "not_found",
+    "atribut": []
+  },
+  "bot1/hunter": {
+    "bot": "bot1",
+    "cmd": "/hunter",
+    "menu": "HUNTER",
+    "submenu": [],
+    "tabel": "vehicles",
+    "kind": null,
+    "volatile": false,
+    "normalizer": "normalize_vehicle",
+    "terverifikasi": false,
+    "status_terakhir": "queue_without_data",
+    "atribut": []
+  },
+  "bot1/imei": {
+    "bot": "bot1",
+    "cmd": "/imei",
+    "menu": "DETAIL IMEI",
+    "submenu": [],
+    "tabel": "records",
+    "kind": "device",
+    "volatile": true,
+    "normalizer": "normalize_device",
+    "terverifikasi": true,
+    "status_terakhir": "found",
+    "atribut": [
+      "brand",
+      "imei",
+      "model",
+      "model_name"
+    ]
+  },
+  "bot1/imigrasi": {
+    "bot": "bot1",
+    "cmd": "/imigrasi",
+    "menu": "DATA IMIGRASI",
+    "submenu": [],
+    "tabel": "records",
+    "kind": "imigrasi",
+    "volatile": false,
+    "normalizer": "normalize_person",
+    "terverifikasi": false,
+    "status_terakhir": "not_found",
+    "atribut": []
+  },
+  "bot1/infonomor": {
+    "bot": "bot1",
+    "cmd": "/infonomor",
+    "menu": "INFO NOMOR",
+    "submenu": [],
+    "tabel": "records",
+    "kind": "number_info",
+    "volatile": true,
+    "normalizer": "normalize_number_info",
+    "terverifikasi": false,
+    "status_terakhir": "queue_without_data",
+    "atribut": []
+  },
+  "bot1/ip": {
+    "bot": "bot1",
+    "cmd": "/ip",
+    "menu": "CEKPOS IP",
+    "submenu": [],
+    "tabel": "records",
+    "kind": "ip_domain",
+    "volatile": false,
+    "normalizer": "normalize_raw",
+    "terverifikasi": true,
+    "status_terakhir": "not_found",
+    "atribut": [
+      "abuse_email",
+      "asn",
+      "calling_code",
+      "capital",
+      "city",
+      "contact_person",
+      "continent",
+      "coordinates",
+      "country",
+      "domain",
+      "email",
+      "hasil_cekpos_ip_untuk",
+      "input_type",
+      "ip_address",
+      "ip_range",
+      "isp",
+      "last_modified",
+      "network_name",
+      "organization",
+      "origin_as",
+      "phone",
+      "postal_code",
+      "region",
+      "route",
+      "status",
+      "timestamp",
+      "timezone",
+      "type",
+      "utc_offset"
+    ]
+  },
+  "bot1/isaku": {
+    "bot": "bot1",
+    "cmd": "/isaku",
+    "menu": "DOMPET DIGITAL",
+    "submenu": [
+      "ewallet_pick_ISAKU"
+    ],
+    "tabel": "records",
+    "kind": "dompet_digital",
+    "volatile": true,
+    "normalizer": "normalize_person",
+    "terverifikasi": false,
+    "status_terakhir": "queue_without_data",
+    "atribut": []
+  },
+  "bot1/kk": {
+    "bot": "bot1",
+    "cmd": "/kk",
+    "menu": "BUKA KK",
+    "submenu": [],
+    "tabel": "profiles",
+    "kind": null,
+    "volatile": false,
+    "normalizer": "normalize_person",
+    "terverifikasi": false,
+    "status_terakhir": "queue_without_data",
+    "atribut": []
+  },
+  "bot1/konsorsium": {
+    "bot": "bot1",
+    "cmd": "/konsorsium",
+    "menu": "DITIPIDEKSUS",
+    "submenu": [
+      "ditipideksus_konsorsium",
+      "company_search:nama_perseroan"
+    ],
+    "tabel": "records",
+    "kind": "perusahaan",
+    "volatile": false,
+    "normalizer": "normalize_raw",
+    "terverifikasi": true,
+    "status_terakhir": "found",
+    "atribut": [
+      "jenis_pencarian",
+      "kab_kota",
+      "provinsi"
+    ]
+  },
+  "bot1/konsorsiumnik": {
+    "bot": "bot1",
+    "cmd": "/konsorsiumnik",
+    "menu": "DITIPIDEKSUS",
+    "submenu": [
+      "ditipideksus_konsorsium",
+      "company_search:nik"
+    ],
+    "tabel": "records",
+    "kind": "perusahaan",
+    "volatile": false,
+    "normalizer": "normalize_raw",
+    "terverifikasi": false,
+    "status_terakhir": "not_found",
+    "atribut": []
+  },
+  "bot1/lbs": {
+    "bot": "bot1",
+    "cmd": "/lbs",
+    "menu": "LBS PLUS",
+    "submenu": [],
+    "tabel": "records",
+    "kind": "device",
+    "volatile": true,
+    "normalizer": "normalize_device",
+    "terverifikasi": true,
+    "status_terakhir": "found",
+    "atribut": [
+      "nomor"
+    ]
+  },
+  "bot1/lbsarea": {
+    "bot": "bot1",
+    "cmd": "/lbsarea",
+    "menu": "LBS QUERY",
+    "submenu": [],
+    "tabel": "records",
+    "kind": "device",
+    "volatile": true,
+    "normalizer": "normalize_device",
+    "terverifikasi": true,
+    "status_terakhir": "found",
+    "atribut": [
+      "latitude",
+      "longitude"
+    ]
+  },
+  "bot1/linimasa": {
+    "bot": "bot1",
+    "cmd": "/linimasa",
+    "menu": "MONITORING TEKAB",
+    "submenu": [
+      "linimasa"
+    ],
+    "tabel": "records",
+    "kind": "device",
+    "volatile": true,
+    "normalizer": "normalize_device",
+    "terverifikasi": true,
+    "status_terakhir": "found",
+    "atribut": [
+      "nomor_hp"
+    ]
+  },
+  "bot1/linkaja": {
+    "bot": "bot1",
+    "cmd": "/linkaja",
+    "menu": "DOMPET DIGITAL",
+    "submenu": [
+      "ewallet_pick_LINKAJA"
+    ],
+    "tabel": "records",
+    "kind": "dompet_digital",
+    "volatile": true,
+    "normalizer": "normalize_person",
+    "terverifikasi": false,
+    "status_terakhir": "queue_without_data",
+    "atribut": []
+  },
+  "bot1/lookup": {
+    "bot": "bot1",
+    "cmd": "/lookup",
+    "menu": "LOOKUP NUMBER",
+    "submenu": [
+      "lookup_by_phone"
+    ],
+    "tabel": "records",
+    "kind": "number_info",
+    "volatile": true,
+    "normalizer": "normalize_number_info",
+    "terverifikasi": false,
+    "status_terakhir": "not_found",
+    "atribut": []
+  },
+  "bot1/lookupnama": {
+    "bot": "bot1",
+    "cmd": "/lookupnama",
+    "menu": "LOOKUP NUMBER",
+    "submenu": [
+      "lookup_by_name"
+    ],
+    "tabel": "records",
+    "kind": "number_info",
+    "volatile": true,
+    "normalizer": "normalize_number_info",
+    "terverifikasi": false,
+    "status_terakhir": "not_found",
+    "atribut": []
+  },
+  "bot1/mandiri": {
+    "bot": "bot1",
+    "cmd": "/mandiri",
+    "menu": "DATA BANK",
+    "submenu": [
+      "bank_select:271"
+    ],
+    "tabel": "records",
+    "kind": "bank",
+    "volatile": false,
+    "normalizer": "normalize_person",
+    "terverifikasi": false,
+    "status_terakhir": null,
+    "atribut": []
+  },
+  "bot1/mapping": {
+    "bot": "bot1",
+    "cmd": "/mapping",
+    "menu": "MAPPING AREA",
+    "submenu": [],
+    "tabel": "records",
+    "kind": "device",
+    "volatile": true,
+    "normalizer": "normalize_device",
+    "terverifikasi": true,
+    "status_terakhir": "found",
+    "atribut": [
+      "latitude",
+      "longitude"
+    ]
+  },
+  "bot1/mariag": {
+    "bot": "bot1",
+    "cmd": "/mariag",
+    "menu": "DATA MA-RI",
+    "submenu": [
+      "mari_ri_panmud_AG"
+    ],
+    "tabel": "records",
+    "kind": "hukum",
+    "volatile": false,
+    "normalizer": "normalize_raw",
+    "terverifikasi": false,
+    "status_terakhir": null,
+    "atribut": []
+  },
+  "bot1/marimil": {
+    "bot": "bot1",
+    "cmd": "/marimil",
+    "menu": "DATA MA-RI",
+    "submenu": [
+      "mari_ri_panmud_MIL"
+    ],
+    "tabel": "records",
+    "kind": "hukum",
+    "volatile": false,
+    "normalizer": "normalize_raw",
+    "terverifikasi": false,
+    "status_terakhir": null,
+    "atribut": []
+  },
+  "bot1/maripdt": {
+    "bot": "bot1",
+    "cmd": "/maripdt",
+    "menu": "DATA MA-RI",
+    "submenu": [
+      "mari_ri_panmud_PDT"
+    ],
+    "tabel": "records",
+    "kind": "hukum",
+    "volatile": false,
+    "normalizer": "normalize_raw",
+    "terverifikasi": false,
+    "status_terakhir": null,
+    "atribut": []
+  },
+  "bot1/maripdtsus": {
+    "bot": "bot1",
+    "cmd": "/maripdtsus",
+    "menu": "DATA MA-RI",
+    "submenu": [
+      "mari_ri_panmud_PDT.SUS"
+    ],
+    "tabel": "records",
+    "kind": "hukum",
+    "volatile": false,
+    "normalizer": "normalize_raw",
+    "terverifikasi": false,
+    "status_terakhir": null,
+    "atribut": []
+  },
+  "bot1/maripid": {
+    "bot": "bot1",
+    "cmd": "/maripid",
+    "menu": "DATA MA-RI",
+    "submenu": [
+      "mari_ri_panmud_PID"
+    ],
+    "tabel": "records",
+    "kind": "hukum",
+    "volatile": false,
+    "normalizer": "normalize_raw",
+    "terverifikasi": false,
+    "status_terakhir": null,
+    "atribut": []
+  },
+  "bot1/maripidsus": {
+    "bot": "bot1",
+    "cmd": "/maripidsus",
+    "menu": "DATA MA-RI",
+    "submenu": [
+      "mari_ri_panmud_PID.SUS"
+    ],
+    "tabel": "records",
+    "kind": "hukum",
+    "volatile": false,
+    "normalizer": "normalize_raw",
+    "terverifikasi": false,
+    "status_terakhir": null,
+    "atribut": []
+  },
+  "bot1/maritun": {
+    "bot": "bot1",
+    "cmd": "/maritun",
+    "menu": "DATA MA-RI",
+    "submenu": [
+      "mari_ri_panmud_TUN"
+    ],
+    "tabel": "records",
+    "kind": "hukum",
+    "volatile": false,
+    "normalizer": "normalize_raw",
+    "terverifikasi": false,
+    "status_terakhir": null,
+    "atribut": []
+  },
+  "bot1/mkri": {
+    "bot": "bot1",
+    "cmd": "/mkri",
+    "menu": "DATA MK-RI",
+    "submenu": [
+      "mkri_sub_ikhtisar"
+    ],
+    "tabel": "records",
+    "kind": "hukum",
+    "volatile": false,
+    "normalizer": "normalize_raw",
+    "terverifikasi": true,
+    "status_terakhir": "found",
+    "atribut": [
+      "di_unduh",
+      "file_pendukung",
+      "pokok_perkara",
+      "tanggal"
+    ]
+  },
+  "bot1/mkriputusan": {
+    "bot": "bot1",
+    "cmd": "/mkriputusan",
+    "menu": "DATA MK-RI",
+    "submenu": [
+      "mkri_sub_putusan"
+    ],
+    "tabel": "records",
+    "kind": "hukum",
+    "volatile": false,
+    "normalizer": "normalize_raw",
+    "terverifikasi": false,
+    "status_terakhir": "queue_without_data",
+    "atribut": []
+  },
+  "bot1/mkririsalah": {
+    "bot": "bot1",
+    "cmd": "/mkririsalah",
+    "menu": "DATA MK-RI",
+    "submenu": [
+      "mkri_sub_risalah"
+    ],
+    "tabel": "records",
+    "kind": "hukum",
+    "volatile": false,
+    "normalizer": "normalize_raw",
+    "terverifikasi": false,
+    "status_terakhir": "queue_without_data",
+    "atribut": []
+  },
+  "bot1/muamalat": {
+    "bot": "bot1",
+    "cmd": "/muamalat",
+    "menu": "DATA BANK",
+    "submenu": [
+      "bank_select:277"
+    ],
+    "tabel": "records",
+    "kind": "bank",
+    "volatile": false,
+    "normalizer": "normalize_person",
+    "terverifikasi": false,
+    "status_terakhir": null,
+    "atribut": []
+  },
+  "bot1/nama": {
+    "bot": "bot1",
+    "cmd": "/nama",
+    "menu": "PENCARIAN BIODATA",
+    "submenu": [
+      "pb_cari_nama"
+    ],
+    "tabel": "profiles",
+    "kind": null,
+    "volatile": false,
+    "normalizer": "normalize_person",
+    "terverifikasi": false,
+    "status_terakhir": "not_found",
+    "atribut": []
+  },
+  "bot1/namaayah": {
+    "bot": "bot1",
+    "cmd": "/namaayah",
+    "menu": "PENCARIAN BIODATA",
+    "submenu": [
+      "pb_cari_ortu",
+      "pb_filter_ayah"
+    ],
+    "tabel": "profiles",
+    "kind": null,
+    "volatile": false,
+    "normalizer": "normalize_person",
+    "terverifikasi": false,
+    "status_terakhir": "queue_without_data",
+    "atribut": []
+  },
+  "bot1/namaibu": {
+    "bot": "bot1",
+    "cmd": "/namaibu",
+    "menu": "PENCARIAN BIODATA",
+    "submenu": [
+      "pb_cari_ortu",
+      "pb_filter_ibu"
+    ],
+    "tabel": "profiles",
+    "kind": null,
+    "volatile": false,
+    "normalizer": "normalize_person",
+    "terverifikasi": false,
+    "status_terakhir": "queue_without_data",
+    "atribut": []
+  },
+  "bot1/namaortu": {
+    "bot": "bot1",
+    "cmd": "/namaortu",
+    "menu": "PENCARIAN BIODATA",
+    "submenu": [
+      "pb_cari_ortu"
+    ],
+    "tabel": "profiles",
+    "kind": null,
+    "volatile": false,
+    "normalizer": "normalize_person",
+    "terverifikasi": false,
+    "status_terakhir": "queue_without_data",
+    "atribut": []
+  },
+  "bot1/namausaha": {
+    "bot": "bot1",
+    "cmd": "/namausaha",
+    "menu": "VERIFIKASI PERIZINAN",
+    "submenu": [
+      "sppirt_select_nama_usaha"
+    ],
+    "tabel": "records",
+    "kind": "perizinan",
+    "volatile": false,
+    "normalizer": "normalize_raw",
+    "terverifikasi": false,
+    "status_terakhir": null,
+    "atribut": []
+  },
+  "bot1/nib": {
+    "bot": "bot1",
+    "cmd": "/nib",
+    "menu": "VERIFIKASI PERIZINAN",
+    "submenu": [
+      "sppirt_select_nib"
+    ],
+    "tabel": "records",
+    "kind": "perizinan",
+    "volatile": false,
+    "normalizer": "normalize_raw",
+    "terverifikasi": false,
+    "status_terakhir": null,
+    "atribut": []
+  },
+  "bot1/nik": {
+    "bot": "bot1",
+    "cmd": "/nik",
+    "menu": "BUKA NIK",
+    "submenu": [],
+    "tabel": "profiles",
+    "kind": null,
+    "volatile": false,
+    "normalizer": "normalize_person",
+    "terverifikasi": false,
+    "status_terakhir": "queue_without_data",
+    "atribut": []
+  },
+  "bot1/nikbyphone": {
+    "bot": "bot1",
+    "cmd": "/nikbyphone",
+    "menu": "NIK BY PHONE",
+    "submenu": [],
+    "tabel": "profiles",
+    "kind": null,
+    "volatile": false,
+    "normalizer": "normalize_person",
+    "terverifikasi": false,
+    "status_terakhir": "queue_without_data",
+    "atribut": []
+  },
+  "bot1/nikinsight": {
+    "bot": "bot1",
+    "cmd": "/nikinsight",
+    "menu": "NIK INSIGHT",
+    "submenu": [],
+    "tabel": "profiles",
+    "kind": null,
+    "volatile": false,
+    "normalizer": "normalize_person",
+    "terverifikasi": true,
+    "status_terakhir": "found",
+    "atribut": [
+      "budaya",
+      "desa_kelurahan",
+      "desa_kode_pos",
+      "generasi",
+      "hari",
+      "jenis_kelamin",
+      "kalender",
+      "kecamatan",
+      "kelompok_usia",
+      "kode_pos",
+      "kota_kabupaten",
+      "neptu",
+      "nik",
+      "provinsi",
+      "pulau",
+      "rentang",
+      "shio",
+      "struktur",
+      "tanggal_lahir",
+      "tipe_data",
+      "total_hari",
+      "total_minggu",
+      "ulang_tahun_berikutnya",
+      "usia",
+      "usia_produktif",
+      "zodiak",
+      "zona_waktu"
+    ]
+  },
+  "bot1/notaris": {
+    "bot": "bot1",
+    "cmd": "/notaris",
+    "menu": "DATA NOTARIS",
+    "submenu": [
+      "notaris_sel:nama"
+    ],
+    "tabel": "records",
+    "kind": "notaris",
+    "volatile": false,
+    "normalizer": "normalize_raw",
+    "terverifikasi": false,
+    "status_terakhir": "queue_without_data",
+    "atribut": []
+  },
+  "bot1/notarisbadan": {
+    "bot": "bot1",
+    "cmd": "/notarisbadan",
+    "menu": "DATA NOTARIS",
+    "submenu": [
+      "notaris_sel:badan_hukum"
+    ],
+    "tabel": "records",
+    "kind": "notaris",
+    "volatile": false,
+    "normalizer": "normalize_raw",
+    "terverifikasi": false,
+    "status_terakhir": "queue_without_data",
+    "atribut": []
+  },
+  "bot1/notarisbn": {
+    "bot": "bot1",
+    "cmd": "/notarisbn",
+    "menu": "DATA NOTARIS",
+    "submenu": [
+      "notaris_sel:no_bn"
+    ],
+    "tabel": "records",
+    "kind": "notaris",
+    "volatile": false,
+    "normalizer": "normalize_raw",
+    "terverifikasi": false,
+    "status_terakhir": "queue_without_data",
+    "atribut": []
+  },
+  "bot1/notaristahun": {
+    "bot": "bot1",
+    "cmd": "/notaristahun",
+    "menu": "DATA NOTARIS",
+    "submenu": [
+      "notaris_sel:tahun"
+    ],
+    "tabel": "records",
+    "kind": "notaris",
+    "volatile": false,
+    "normalizer": "normalize_raw",
+    "terverifikasi": false,
+    "status_terakhir": "queue_without_data",
+    "atribut": []
+  },
+  "bot1/notaristbn": {
+    "bot": "bot1",
+    "cmd": "/notaristbn",
+    "menu": "DATA NOTARIS",
+    "submenu": [
+      "notaris_sel:no_tbn"
+    ],
+    "tabel": "records",
+    "kind": "notaris",
+    "volatile": false,
+    "normalizer": "normalize_raw",
+    "terverifikasi": false,
+    "status_terakhir": "queue_without_data",
+    "atribut": []
+  },
+  "bot1/ovo": {
+    "bot": "bot1",
+    "cmd": "/ovo",
+    "menu": "DOMPET DIGITAL",
+    "submenu": [
+      "ewallet_pick_OVO"
+    ],
+    "tabel": "records",
+    "kind": "dompet_digital",
+    "volatile": true,
+    "normalizer": "normalize_person",
+    "terverifikasi": false,
+    "status_terakhir": "queue_without_data",
+    "atribut": []
+  },
+  "bot1/paspor": {
+    "bot": "bot1",
+    "cmd": "/paspor",
+    "menu": "DATA PASPOR",
+    "submenu": [],
+    "tabel": "records",
+    "kind": "paspor",
+    "volatile": false,
+    "normalizer": "normalize_person",
+    "terverifikasi": true,
+    "status_terakhir": "found",
+    "atribut": [
+      "berlaku_sampai",
+      "jenis_kelamin",
+      "nama",
+      "nikim",
+      "nomor_paspor",
+      "tanggal_lahir"
+    ]
+  },
+  "bot1/pasporkerja": {
+    "bot": "bot1",
+    "cmd": "/pasporkerja",
+    "menu": "PASPOR PEKERJA",
+    "submenu": [],
+    "tabel": "records",
+    "kind": "paspor",
+    "volatile": false,
+    "normalizer": "normalize_person",
+    "terverifikasi": true,
+    "status_terakhir": "found",
+    "atribut": [
+      "alamat",
+      "berlaku_sampai",
+      "diterbitkan_di",
+      "lembaga_perusahaan",
+      "nama",
+      "negara_penempatan",
+      "nomor_id",
+      "nomor_paspor"
+    ]
+  },
+  "bot1/pddikti": {
+    "bot": "bot1",
+    "cmd": "/pddikti",
+    "menu": "DATA PDDIKTI",
+    "submenu": [],
+    "tabel": "records",
+    "kind": "pddikti",
+    "volatile": false,
+    "normalizer": "normalize_raw",
+    "terverifikasi": false,
+    "status_terakhir": "queue_without_data",
+    "atribut": []
+  },
+  "bot1/pendidikan": {
+    "bot": "bot1",
+    "cmd": "/pendidikan",
+    "menu": "PROFIL PENDIDIKAN",
+    "submenu": [],
+    "tabel": "records",
+    "kind": "pendidikan",
+    "volatile": false,
+    "normalizer": "normalize_person",
+    "terverifikasi": false,
+    "status_terakhir": "queue_without_data",
+    "atribut": []
+  },
+  "bot1/perkumpulan": {
+    "bot": "bot1",
+    "cmd": "/perkumpulan",
+    "menu": "DITIPIDEKSUS",
+    "submenu": [
+      "ditipideksus_badan_hukum",
+      "badan_hukum_perkumpulan"
+    ],
+    "tabel": "records",
+    "kind": "perusahaan",
+    "volatile": false,
+    "normalizer": "normalize_raw",
+    "terverifikasi": false,
+    "status_terakhir": "queue_without_data",
+    "atribut": []
+  },
+  "bot1/perseroan": {
+    "bot": "bot1",
+    "cmd": "/perseroan",
+    "menu": "DITIPIDEKSUS",
+    "submenu": [
+      "ditipideksus_badan_hukum",
+      "badan_hukum_perseroan"
+    ],
+    "tabel": "records",
+    "kind": "perusahaan",
+    "volatile": false,
+    "normalizer": "normalize_raw",
+    "terverifikasi": false,
+    "status_terakhir": "queue_without_data",
+    "atribut": []
+  },
+  "bot1/perseroanorang": {
+    "bot": "bot1",
+    "cmd": "/perseroanorang",
+    "menu": "DITIPIDEKSUS",
+    "submenu": [
+      "ditipideksus_badan_hukum",
+      "badan_hukum_perseroan_perorangan"
+    ],
+    "tabel": "records",
+    "kind": "perusahaan",
+    "volatile": false,
+    "normalizer": "normalize_raw",
+    "terverifikasi": false,
+    "status_terakhir": "not_found",
+    "atribut": []
+  },
+  "bot1/pertamina": {
+    "bot": "bot1",
+    "cmd": "/pertamina",
+    "menu": "PERTAMINA",
+    "submenu": [],
+    "tabel": "records",
+    "kind": "pertamina",
+    "volatile": false,
+    "normalizer": "normalize_person",
+    "terverifikasi": false,
+    "status_terakhir": "queue_without_data",
+    "atribut": []
+  },
+  "bot1/perusahaan": {
+    "bot": "bot1",
+    "cmd": "/perusahaan",
+    "menu": "DITIPIDEKSUS",
+    "submenu": [
+      "ditipideksus_profil_perusahaan"
+    ],
+    "tabel": "records",
+    "kind": "perusahaan",
+    "volatile": false,
+    "normalizer": "normalize_raw",
+    "terverifikasi": false,
+    "status_terakhir": "queue_without_data",
+    "atribut": []
+  },
+  "bot1/phonebynik": {
+    "bot": "bot1",
+    "cmd": "/phonebynik",
+    "menu": "PHONE BY NIK",
+    "submenu": [],
+    "tabel": "phones",
+    "kind": null,
+    "volatile": false,
+    "normalizer": "normalize_phone",
+    "terverifikasi": false,
+    "status_terakhir": "queue_without_data",
+    "atribut": []
+  },
+  "bot1/pln": {
+    "bot": "bot1",
+    "cmd": "/pln",
+    "menu": "PLN INSIGHT",
+    "submenu": [],
+    "tabel": "records",
+    "kind": "pln",
+    "volatile": true,
+    "normalizer": "normalize_pln",
+    "terverifikasi": false,
+    "status_terakhir": "queue_without_data",
+    "atribut": []
+  },
+  "bot1/produkpangan": {
+    "bot": "bot1",
+    "cmd": "/produkpangan",
+    "menu": "VERIFIKASI PERIZINAN",
+    "submenu": [
+      "sppirt_select_nama_produk_pangan"
+    ],
+    "tabel": "records",
+    "kind": "perizinan",
+    "volatile": false,
+    "normalizer": "normalize_raw",
+    "terverifikasi": false,
+    "status_terakhir": null,
+    "atribut": []
+  },
+  "bot1/resianteraja": {
+    "bot": "bot1",
+    "cmd": "/resianteraja",
+    "menu": "TRACKING NUMBER",
+    "submenu": [
+      "track_mode_new",
+      "courier_anteraja"
+    ],
+    "tabel": "records",
+    "kind": "resi",
+    "volatile": false,
+    "normalizer": "normalize_person",
+    "terverifikasi": false,
+    "status_terakhir": null,
+    "atribut": []
+  },
+  "bot1/resiasal": {
+    "bot": "bot1",
+    "cmd": "/resiasal",
+    "menu": "TRACKING NUMBER",
+    "submenu": [
+      "track_search_origin"
+    ],
+    "tabel": "records",
+    "kind": "resi",
+    "volatile": false,
+    "normalizer": "normalize_raw",
+    "terverifikasi": false,
+    "status_terakhir": null,
+    "atribut": []
+  },
+  "bot1/resifirst": {
+    "bot": "bot1",
+    "cmd": "/resifirst",
+    "menu": "TRACKING NUMBER",
+    "submenu": [
+      "track_mode_new",
+      "courier_first"
+    ],
+    "tabel": "records",
+    "kind": "resi",
+    "volatile": false,
+    "normalizer": "normalize_person",
+    "terverifikasi": false,
+    "status_terakhir": null,
+    "atribut": []
+  },
+  "bot1/resiide": {
+    "bot": "bot1",
+    "cmd": "/resiide",
+    "menu": "TRACKING NUMBER",
+    "submenu": [
+      "track_mode_new",
+      "courier_ide"
+    ],
+    "tabel": "records",
+    "kind": "resi",
+    "volatile": false,
+    "normalizer": "normalize_person",
+    "terverifikasi": false,
+    "status_terakhir": null,
+    "atribut": []
+  },
+  "bot1/resijet": {
+    "bot": "bot1",
+    "cmd": "/resijet",
+    "menu": "TRACKING NUMBER",
+    "submenu": [
+      "track_mode_new",
+      "courier_jet"
+    ],
+    "tabel": "records",
+    "kind": "resi",
+    "volatile": false,
+    "normalizer": "normalize_person",
+    "terverifikasi": false,
+    "status_terakhir": null,
+    "atribut": []
+  },
+  "bot1/resijne": {
+    "bot": "bot1",
+    "cmd": "/resijne",
+    "menu": "TRACKING NUMBER",
+    "submenu": [
+      "track_mode_new",
+      "courier_jne"
+    ],
+    "tabel": "records",
+    "kind": "resi",
+    "volatile": false,
+    "normalizer": "normalize_person",
+    "terverifikasi": false,
+    "status_terakhir": null,
+    "atribut": []
+  },
+  "bot1/resijnt": {
+    "bot": "bot1",
+    "cmd": "/resijnt",
+    "menu": "TRACKING NUMBER",
+    "submenu": [
+      "track_mode_new",
+      "courier_jnt"
+    ],
+    "tabel": "records",
+    "kind": "resi",
+    "volatile": false,
+    "normalizer": "normalize_person",
+    "terverifikasi": false,
+    "status_terakhir": null,
+    "atribut": []
+  },
+  "bot1/resijntcargo": {
+    "bot": "bot1",
+    "cmd": "/resijntcargo",
+    "menu": "TRACKING NUMBER",
+    "submenu": [
+      "track_mode_new",
+      "courier_jnt_cargo"
+    ],
+    "tabel": "records",
+    "kind": "resi",
+    "volatile": false,
+    "normalizer": "normalize_person",
+    "terverifikasi": false,
+    "status_terakhir": null,
+    "atribut": []
+  },
+  "bot1/resikurir": {
+    "bot": "bot1",
+    "cmd": "/resikurir",
+    "menu": "TRACKING NUMBER",
+    "submenu": [
+      "track_search_courier"
+    ],
+    "tabel": "records",
+    "kind": "resi",
+    "volatile": false,
+    "normalizer": "normalize_raw",
+    "terverifikasi": false,
+    "status_terakhir": null,
+    "atribut": []
+  },
+  "bot1/resilion": {
+    "bot": "bot1",
+    "cmd": "/resilion",
+    "menu": "TRACKING NUMBER",
+    "submenu": [
+      "track_mode_new",
+      "courier_lion"
+    ],
+    "tabel": "records",
+    "kind": "resi",
+    "volatile": false,
+    "normalizer": "normalize_person",
+    "terverifikasi": false,
+    "status_terakhir": null,
+    "atribut": []
+  },
+  "bot1/resininja": {
+    "bot": "bot1",
+    "cmd": "/resininja",
+    "menu": "TRACKING NUMBER",
+    "submenu": [
+      "track_mode_new",
+      "courier_ninja"
+    ],
+    "tabel": "records",
+    "kind": "resi",
+    "volatile": false,
+    "normalizer": "normalize_person",
+    "terverifikasi": false,
+    "status_terakhir": null,
+    "atribut": []
+  },
+  "bot1/resipcp": {
+    "bot": "bot1",
+    "cmd": "/resipcp",
+    "menu": "TRACKING NUMBER",
+    "submenu": [
+      "track_mode_new",
+      "courier_pcp"
+    ],
+    "tabel": "records",
+    "kind": "resi",
+    "volatile": false,
+    "normalizer": "normalize_person",
+    "terverifikasi": false,
+    "status_terakhir": null,
+    "atribut": []
+  },
+  "bot1/resipenerima": {
+    "bot": "bot1",
+    "cmd": "/resipenerima",
+    "menu": "TRACKING NUMBER",
+    "submenu": [
+      "track_search_receiver"
+    ],
+    "tabel": "records",
+    "kind": "resi",
+    "volatile": false,
+    "normalizer": "normalize_raw",
+    "terverifikasi": false,
+    "status_terakhir": null,
+    "atribut": []
+  },
+  "bot1/resipengirim": {
+    "bot": "bot1",
+    "cmd": "/resipengirim",
+    "menu": "TRACKING NUMBER",
+    "submenu": [
+      "track_search_shipper"
+    ],
+    "tabel": "records",
+    "kind": "resi",
+    "volatile": false,
+    "normalizer": "normalize_raw",
+    "terverifikasi": false,
+    "status_terakhir": null,
+    "atribut": []
+  },
+  "bot1/resipos": {
+    "bot": "bot1",
+    "cmd": "/resipos",
+    "menu": "TRACKING NUMBER",
+    "submenu": [
+      "track_mode_new",
+      "courier_pos"
+    ],
+    "tabel": "records",
+    "kind": "resi",
+    "volatile": false,
+    "normalizer": "normalize_person",
+    "terverifikasi": false,
+    "status_terakhir": null,
+    "atribut": []
+  },
+  "bot1/resirex": {
+    "bot": "bot1",
+    "cmd": "/resirex",
+    "menu": "TRACKING NUMBER",
+    "submenu": [
+      "track_mode_new",
+      "courier_rex"
+    ],
+    "tabel": "records",
+    "kind": "resi",
+    "volatile": false,
+    "normalizer": "normalize_person",
+    "terverifikasi": false,
+    "status_terakhir": null,
+    "atribut": []
+  },
+  "bot1/resisicepat": {
+    "bot": "bot1",
+    "cmd": "/resisicepat",
+    "menu": "TRACKING NUMBER",
+    "submenu": [
+      "track_mode_new",
+      "courier_sicepat"
+    ],
+    "tabel": "records",
+    "kind": "resi",
+    "volatile": false,
+    "normalizer": "normalize_person",
+    "terverifikasi": false,
+    "status_terakhir": null,
+    "atribut": []
+  },
+  "bot1/resitiki": {
+    "bot": "bot1",
+    "cmd": "/resitiki",
+    "menu": "TRACKING NUMBER",
+    "submenu": [
+      "track_mode_new",
+      "courier_tiki"
+    ],
+    "tabel": "records",
+    "kind": "resi",
+    "volatile": false,
+    "normalizer": "normalize_person",
+    "terverifikasi": false,
+    "status_terakhir": null,
+    "atribut": []
+  },
+  "bot1/resitujuan": {
+    "bot": "bot1",
+    "cmd": "/resitujuan",
+    "menu": "TRACKING NUMBER",
+    "submenu": [
+      "track_search_destination"
+    ],
+    "tabel": "records",
+    "kind": "resi",
+    "volatile": false,
+    "normalizer": "normalize_raw",
+    "terverifikasi": false,
+    "status_terakhir": "queue_without_data",
+    "atribut": []
+  },
+  "bot1/resiwahana": {
+    "bot": "bot1",
+    "cmd": "/resiwahana",
+    "menu": "TRACKING NUMBER",
+    "submenu": [
+      "track_mode_new",
+      "courier_wahana"
+    ],
+    "tabel": "records",
+    "kind": "resi",
+    "volatile": false,
+    "normalizer": "normalize_person",
+    "terverifikasi": false,
+    "status_terakhir": null,
+    "atribut": []
+  },
+  "bot1/shopeepay": {
+    "bot": "bot1",
+    "cmd": "/shopeepay",
+    "menu": "DOMPET DIGITAL",
+    "submenu": [
+      "ewallet_pick_SHOPEEPAY"
+    ],
+    "tabel": "records",
+    "kind": "dompet_digital",
+    "volatile": true,
+    "normalizer": "normalize_person",
+    "terverifikasi": false,
+    "status_terakhir": "queue_without_data",
+    "atribut": []
+  },
+  "bot1/socmed": {
+    "bot": "bot1",
+    "cmd": "/socmed",
+    "menu": "SOCIAL MEDIA",
+    "submenu": [],
+    "tabel": "records",
+    "kind": "social_media",
+    "volatile": false,
+    "normalizer": "normalize_person",
+    "terverifikasi": false,
+    "status_terakhir": "queue_without_data",
+    "atribut": []
+  },
+  "bot1/sppirt": {
+    "bot": "bot1",
+    "cmd": "/sppirt",
+    "menu": "VERIFIKASI PERIZINAN",
+    "submenu": [
+      "sppirt_select_no_sppirt"
+    ],
+    "tabel": "records",
+    "kind": "perizinan",
+    "volatile": false,
+    "normalizer": "normalize_raw",
+    "terverifikasi": false,
+    "status_terakhir": "queue_without_data",
+    "atribut": []
+  },
+  "bot1/statuskartu": {
+    "bot": "bot1",
+    "cmd": "/statuskartu",
+    "menu": "STATUS KARTU",
+    "submenu": [],
+    "tabel": "records",
+    "kind": "number_info",
+    "volatile": true,
+    "normalizer": "normalize_number_info",
+    "terverifikasi": false,
+    "status_terakhir": "queue_without_data",
+    "atribut": []
+  },
+  "bot1/telegram": {
+    "bot": "bot1",
+    "cmd": "/telegram",
+    "menu": "DATA TELEGRAM",
+    "submenu": [
+      "telegram_profiling_by_username"
+    ],
+    "tabel": "records",
+    "kind": "telegram",
+    "volatile": true,
+    "normalizer": "normalize_person",
+    "terverifikasi": false,
+    "status_terakhir": "queue_without_data",
+    "atribut": []
+  },
+  "bot1/telegramid": {
+    "bot": "bot1",
+    "cmd": "/telegramid",
+    "menu": "DATA TELEGRAM",
+    "submenu": [
+      "telegram_profiling_by_id"
+    ],
+    "tabel": "records",
+    "kind": "telegram",
+    "volatile": true,
+    "normalizer": "normalize_person",
+    "terverifikasi": false,
+    "status_terakhir": "queue_without_data",
+    "atribut": []
+  },
+  "bot1/telegrammail": {
+    "bot": "bot1",
+    "cmd": "/telegrammail",
+    "menu": "DATA TELEGRAM",
+    "submenu": [
+      "telegram_profiling_by_email"
+    ],
+    "tabel": "records",
+    "kind": "telegram",
+    "volatile": true,
+    "normalizer": "normalize_person",
+    "terverifikasi": false,
+    "status_terakhir": "queue_without_data",
+    "atribut": []
+  },
+  "bot1/telegramnama": {
+    "bot": "bot1",
+    "cmd": "/telegramnama",
+    "menu": "DATA TELEGRAM",
+    "submenu": [
+      "telegram_profiling_by_name"
+    ],
+    "tabel": "records",
+    "kind": "telegram",
+    "volatile": true,
+    "normalizer": "normalize_person",
+    "terverifikasi": false,
+    "status_terakhir": "queue_without_data",
+    "atribut": []
+  },
+  "bot1/tnkb": {
+    "bot": "bot1",
+    "cmd": "/tnkb",
+    "menu": "DATA KENDARAAN",
+    "submenu": [],
+    "tabel": "vehicles",
+    "kind": null,
+    "volatile": false,
+    "normalizer": "normalize_vehicle",
+    "terverifikasi": false,
+    "status_terakhir": "queue_without_data",
+    "atribut": []
+  },
+  "bot1/traceimei": {
+    "bot": "bot1",
+    "cmd": "/traceimei",
+    "menu": "MONITORING TEKAB",
+    "submenu": [
+      "trace_imei"
+    ],
+    "tabel": "records",
+    "kind": "device",
+    "volatile": true,
+    "normalizer": "normalize_device",
+    "terverifikasi": false,
+    "status_terakhir": "not_found",
+    "atribut": []
+  },
+  "bot1/tracenumber": {
+    "bot": "bot1",
+    "cmd": "/tracenumber",
+    "menu": "MONITORING TEKAB",
+    "submenu": [
+      "trace_number"
+    ],
+    "tabel": "records",
+    "kind": "device",
+    "volatile": true,
+    "normalizer": "normalize_device",
+    "terverifikasi": true,
+    "status_terakhir": "found",
+    "atribut": [
+      "imei",
+      "waktu"
+    ]
+  },
+  "bot1/tracingimei": {
+    "bot": "bot1",
+    "cmd": "/tracingimei",
+    "menu": "MONITORING TEKAB",
+    "submenu": [
+      "tracing_imei"
+    ],
+    "tabel": "records",
+    "kind": "device",
+    "volatile": true,
+    "normalizer": "normalize_device",
+    "terverifikasi": false,
+    "status_terakhir": "not_found",
+    "atribut": []
+  },
+  "bot1/tracingimsi": {
+    "bot": "bot1",
+    "cmd": "/tracingimsi",
+    "menu": "MONITORING TEKAB",
+    "submenu": [
+      "tracing_imsi"
+    ],
+    "tabel": "records",
+    "kind": "device",
+    "volatile": true,
+    "normalizer": "normalize_device",
+    "terverifikasi": true,
+    "status_terakhir": "found",
+    "atribut": [
+      "nomor_hp_terhubung",
+      "tracing_imsi"
+    ]
+  },
+  "bot1/track": {
+    "bot": "bot1",
+    "cmd": "/track",
+    "menu": "TRACKING PHONE",
+    "submenu": [],
+    "tabel": "records",
+    "kind": "device",
+    "volatile": true,
+    "normalizer": "normalize_device",
+    "terverifikasi": true,
+    "status_terakhir": "found",
+    "atribut": [
+      "data_imsi",
+      "data_koordinat",
+      "kediaman",
+      "lac",
+      "lainnya",
+      "mobile_number",
+      "terakhir_aktif",
+      "whatsapp"
+    ]
+  },
+  "bot1/verifnomor": {
+    "bot": "bot1",
+    "cmd": "/verifnomor",
+    "menu": "VERIFIKASI NOMOR",
+    "submenu": [],
+    "tabel": "records",
+    "kind": "number_info",
+    "volatile": true,
+    "normalizer": "normalize_number_info",
+    "terverifikasi": false,
+    "status_terakhir": "not_found",
+    "atribut": []
+  },
+  "bot1/whatsapp": {
+    "bot": "bot1",
+    "cmd": "/whatsapp",
+    "menu": "DATA WHATSAPP",
+    "submenu": [
+      "wa_profiling_phone"
+    ],
+    "tabel": "records",
+    "kind": "whatsapp",
+    "volatile": true,
+    "normalizer": "normalize_person",
+    "terverifikasi": false,
+    "status_terakhir": "queue_without_data",
+    "atribut": []
+  },
+  "bot1/whatsappmail": {
+    "bot": "bot1",
+    "cmd": "/whatsappmail",
+    "menu": "DATA WHATSAPP",
+    "submenu": [
+      "wa_profiling_email"
+    ],
+    "tabel": "records",
+    "kind": "whatsapp",
+    "volatile": true,
+    "normalizer": "normalize_person",
+    "terverifikasi": false,
+    "status_terakhir": "queue_without_data",
+    "atribut": []
+  },
+  "bot2/getphone": {
+    "bot": "bot2",
+    "cmd": "/getphone",
+    "menu": null,
+    "submenu": [],
+    "tabel": "records",
+    "kind": "number_info",
+    "volatile": true,
+    "normalizer": "normalize_number_info",
+    "terverifikasi": true,
+    "status_terakhir": "found",
+    "atribut": [
+      "cek_link_whatsapp",
+      "contact_tags",
+      "dana",
+      "gopay",
+      "identitas_utama",
+      "isaku",
+      "keterangan",
+      "linkaja",
+      "msisdn",
+      "nama_teridentifikasi",
+      "nomor",
+      "ovo",
+      "primary",
+      "search_engine",
+      "shopeepay",
+      "total",
+      "whatsapp",
+      "wilayah"
+    ]
+  }
+}

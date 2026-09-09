@@ -1,0 +1,11 @@
+-- Simpan TEKS MENTAH balasan bot, bukan cuma hasil parse.
+--
+-- Kenapa: perbaikan normalizer bisa diterapkan ulang lewat rebuild.py karena
+-- kolom `fields` menyimpan hasil parse. Tapi perbaikan PARSER tidak bisa —
+-- begitu teks aslinya dibuang, satu-satunya cara adalah menembak bot lagi dan
+-- memotong kuota. Terbukti mahal saat penomoran hasil "1. Judul" ditemukan:
+-- /bpom mengembalikan 5 produk, hanya 1 yang terurai, dan semua query lama
+-- harus diulang untuk memperbaikinya.
+--
+-- Dengan raw_text tersimpan, parser bisa diperbaiki dan diputar ulang gratis.
+ALTER TABLE bot_query_cache ADD COLUMN IF NOT EXISTS raw_text TEXT;

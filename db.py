@@ -11,6 +11,7 @@ Alur pemakaian (lihat store_result / lookup):
 from __future__ import annotations
 
 import json
+import logging
 import os
 from datetime import datetime, timezone
 from typing import Any
@@ -19,8 +20,11 @@ import psycopg
 from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
 
+import config
 import normalize as N
 import routes
+
+log = logging.getLogger("artemis.db")
 
 DSN = os.getenv("PG_DSN", "postgresql:///db_artemis")
 
@@ -52,37 +56,48 @@ async def lookup(conn, bot: str, cmd: str, value: str) -> dict | None:
     if routes.is_volatile(bot, cmd):
         return None
 
+    # Slot logis ('bot1') dipakai ulang saat bot target diganti, jadi baris
+    # lama bisa punya cmd yang namanya sama tapi berasal dari bot yang sudah
+    # tidak dipakai. Hanya baris dari bot yang sekarang aktif yang boleh
+    # menjawab; baris tanpa bot_username (sebelum migrasi 010) tidak dipercaya.
     async with conn.cursor() as cur:
         await cur.execute(
             """
             SELECT * FROM bot_query_cache
              WHERE bot = %s AND cmd = %s AND value = %s AND status = 'found'
+               AND bot_username = %s
             """,
-            (bot, cmd, value),
+            (bot, cmd, value, config.resolve(bot)),
         )
         return await cur.fetchone()
 
 
 async def upsert_cache(conn, bot: str, cmd: str, value: str, status: str,
                        msg: str | None, fields: Any,
-                       tested_at: datetime | None = None) -> int:
+                       tested_at: datetime | None = None,
+                       raw_text: str | None = None) -> int:
     """Simpan/replace hasil query mentah. Kembalikan id baris cache."""
     tested_at = tested_at or datetime.now(timezone.utc)
     async with conn.cursor() as cur:
         await cur.execute(
             """
-            INSERT INTO bot_query_cache (bot, cmd, value, status, msg, fields, tested_at)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            INSERT INTO bot_query_cache
+                   (bot, cmd, value, status, msg, fields, tested_at, bot_username,
+                    raw_text)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
             ON CONFLICT (bot, cmd, value) DO UPDATE SET
-                status    = EXCLUDED.status,
-                msg       = EXCLUDED.msg,
-                fields    = EXCLUDED.fields,
-                tested_at = EXCLUDED.tested_at,
-                hit_count = bot_query_cache.hit_count + 1
+                status       = EXCLUDED.status,
+                msg          = EXCLUDED.msg,
+                fields       = EXCLUDED.fields,
+                tested_at    = EXCLUDED.tested_at,
+                bot_username = EXCLUDED.bot_username,
+                raw_text     = COALESCE(EXCLUDED.raw_text, bot_query_cache.raw_text),
+                hit_count    = bot_query_cache.hit_count + 1
             RETURNING id
             """,
             (bot, cmd, value, status, msg,
-             Jsonb(fields) if fields is not None else None, tested_at),
+             Jsonb(fields) if fields is not None else None, tested_at,
+             config.resolve(bot), raw_text),
         )
         return (await cur.fetchone())["id"]
 
@@ -154,15 +169,22 @@ async def set_cache_media(conn, query_id: int, media_ids: list[str]) -> None:
 # ---------------------------------------------------------------- profiles
 
 async def upsert_profile(conn, person: dict, source_query_id: int | None = None) -> int | None:
-    """Upsert satu orang ke profiles, dikunci pada NIK.
+    """Upsert satu orang ke profiles.
+
+    Dua kunci, sesuai rancangan skema (`nik` nullable, `nama` NOT NULL):
+
+    * ada NIK  -> dikunci pada NIK (UNIQUE nik).
+    * tanpa NIK -> dikunci pada (nama, tanggal_lahir) lewat index parsial
+      uq_profiles_nama_tanpa_nik (migrasi 012). Pencarian by-nama memang
+      sering tidak mengembalikan NIK; sebelum ini hasilnya dibuang.
 
     Pakai COALESCE: nilai baru yang NULL tidak boleh menimpa data lama yang
     sudah terisi (bot sering mengirim '-' yang dinormalisasi jadi NULL).
     """
     nik = person.get("nik")
     nama = person.get("nama")
-    if not nik or not nama:
-        return None  # tanpa NIK/nama tidak bisa jadi baris profiles
+    if not nama:
+        return None  # nama NOT NULL — tanpa itu tidak ada yang bisa disimpan
 
     cols = [c for c in _PROFILE_COLS]
     values = [person.get(c) for c in cols]
@@ -170,13 +192,16 @@ async def upsert_profile(conn, person: dict, source_query_id: int | None = None)
     updates = ", ".join(
         f"{c} = COALESCE(EXCLUDED.{c}, profiles.{c})" for c in cols
     )
+    konflik = ("(nik)" if nik else
+               "(lower(nama), COALESCE(tanggal_lahir, DATE '0001-01-01')) "
+               "WHERE nik IS NULL")
 
     async with conn.cursor() as cur:
         await cur.execute(
             f"""
             INSERT INTO profiles (nik, {", ".join(cols)})
             VALUES ({placeholders})
-            ON CONFLICT (nik) DO UPDATE SET {updates}
+            ON CONFLICT {konflik} DO UPDATE SET {updates}
             RETURNING id
             """,
             (nik, *values),
@@ -233,10 +258,19 @@ async def insert_vehicle(conn, vehicle: dict, source_query_id: int | None = None
 
 
 async def insert_record(conn, kind: str, subject: str | None, data: dict,
-                        source_query_id: int | None = None) -> None:
+                        source_query_id: int | None = None,
+                        profile_id: int | None = None) -> None:
+    """Simpan satu record long-tail.
+
+    `profile_id` boleh diberikan langsung oleh pemanggil. Perlu karena
+    find_profile_id() hanya bisa mencari lewat NIK, sedangkan profil hasil
+    cari-by-nama boleh ber-NIK NULL (migrasi 012) — tanpa ini catatannya
+    tersimpan tapi tidak tertaut ke profilnya.
+    """
     if not data:
         return
-    profile_id = await find_profile_id(conn, data.get("nik") or subject)
+    if profile_id is None:
+        profile_id = await find_profile_id(conn, data.get("nik") or subject)
     async with conn.cursor() as cur:
         await cur.execute(
             """
@@ -256,17 +290,36 @@ def _jsonable(data: dict) -> dict:
     return out
 
 
+async def _simpan_cadangan(conn, kind: str, value: str, data: dict,
+                           query_id: int | None, alasan: str,
+                           profile_id: int | None = None) -> None:
+    """Jaring pengaman: simpan field apa adanya ke profile_records.
+
+    Dipakai saat hasil ber-status found tapi tidak bisa masuk tabel tujuannya.
+    Lebih baik tersimpan mentah dan bisa di-query daripada hilang senyap.
+    """
+    mentah = N.normalize_raw(data)
+    if not mentah:
+        log.warning("%s — dan tidak ada field tersisa untuk disimpan", alasan)
+        return
+    log.warning("%s; disimpan mentah ke profile_records[%s]", alasan, kind)
+    subject = mentah.get("nik") or mentah.get("msisdn") or value
+    await insert_record(conn, kind, subject, mentah, query_id, profile_id)
+
+
 # -------------------------------------------------------------- orkestrasi
 
 async def store_result(conn, bot: str, cmd: str, value: str, status: str,
                        msg: str | None = None, fields: Any = None,
                        tested_at: datetime | None = None,
-                       media: list[tuple[bytes, str]] | None = None) -> int:
+                       media: list[tuple[bytes, str]] | None = None,
+                       raw_text: str | None = None) -> int:
     """Simpan hasil query: cache mentah + normalisasi + media.
 
     `media` = daftar (bytes, content_type) foto yang menyertai jawaban.
     """
-    query_id = await upsert_cache(conn, bot, cmd, value, status, msg, fields, tested_at)
+    query_id = await upsert_cache(conn, bot, cmd, value, status, msg, fields,
+                                  tested_at, raw_text)
 
     if media:
         ids = []
@@ -284,22 +337,64 @@ async def store_result(conn, bot: str, cmd: str, value: str, status: str,
         return query_id
 
     records = fields if isinstance(fields, list) else [fields]
+    kind_cadangan = route.kind or cmd.lstrip("/")
     for raw in records:
         data = route.normalizer(raw)
         if not data:
+            # Normalizer tidak mengenali bentuk balasan ini. Dulu record-nya
+            # dibuang diam-diam — hasil hanya tersisa di cache dan tidak bisa
+            # di-query. Terbukti pada /cuaca: status found, 0 baris tersimpan.
+            # Simpan mentahnya supaya lapis queryable tidak bolong.
+            await _simpan_cadangan(conn, kind_cadangan, value, raw, query_id,
+                                   f"{bot} {cmd}: normalizer "
+                                   f"{route.normalizer.__name__} tidak mengenali balasan")
             continue
 
         if route.target == "profiles":
-            await upsert_profile(conn, data, query_id)
+            pid = await upsert_profile(conn, data, query_id)
+            if pid is not None:
+                # profiles hanya punya kolom kependudukan baku. Atribut lain
+                # yang dikembalikan bot (NIK INSIGHT mengembalikan 28 field:
+                # neptu, generasi, kelompok usia, ...) tidak punya kolom dan
+                # dulu hilang. Simpan sisanya ke profile_records supaya tetap
+                # bisa di-query, tanpa mengotori skema profiles.
+                sisa = {k: v for k, v in N.normalize_raw(raw).items()
+                        if k not in N.PROFILE_COLUMNS and k != "nik"}
+                if sisa:
+                    await insert_record(conn, kind_cadangan,
+                                        data.get("nik") or value, sisa, query_id,
+                                        profile_id=pid)
+            if pid is None:
+                # profiles dikunci pada NIK dan nama NOT NULL. Hasil pencarian
+                # by-nama yang tidak menyertakan NIK tidak bisa masuk ke sana,
+                # jadi jangan dibuang — turunkan ke profile_records.
+                # Bawa SELURUH atribut, bukan hanya yang punya kolom profiles —
+                # kalau tidak, /nikinsight yang mengembalikan 28 field cuma
+                # tersimpan 7.
+                await _simpan_cadangan(conn, kind_cadangan, value,
+                                       {**N.normalize_raw(raw), **data}, query_id,
+                                       f"{bot} {cmd}: tanpa NIK/nama, "
+                                       f"tidak bisa masuk profiles")
         elif route.target == "phones":
             await insert_phone(conn, data, query_id)
         elif route.target == "vehicles":
             await insert_vehicle(conn, data, query_id)
         else:  # records
+            # Normalizer khusus (device/pln/number_info) hanya mengenali
+            # sebagian kecil field; sisanya dulu HILANG walau kolom `data`
+            # bertipe jsonb. Terbukti pada /btscellid: 22 field mentah, cuma 2
+            # tersimpan. Karena itu field kanonik ditumpuk DI ATAS field mentah
+            # — nama kanonik menang, tapi tidak ada atribut yang terbuang.
+            data = {**N.normalize_raw(raw), **data}
             subject = data.get("nik") or data.get("msisdn") or data.get("id_pelanggan") or value
-            # data orang yang menempel di record khusus tetap dinaikkan ke profiles
+            # data orang yang menempel di record khusus tetap dinaikkan ke
+            # profiles, dan id-nya dipakai supaya record ini TERTAUT ke profil
+            # itu — find_profile_id() tidak bisa menemukannya lewat NIK kalau
+            # profilnya ber-NIK NULL (hasil cari-by-nama).
+            pid = None
             if route.normalizer is N.normalize_person:
-                await upsert_profile(conn, data, query_id)
-            await insert_record(conn, route.kind or cmd.lstrip("/"), subject, data, query_id)
+                pid = await upsert_profile(conn, data, query_id)
+            await insert_record(conn, route.kind or cmd.lstrip("/"), subject, data,
+                                query_id, profile_id=pid)
 
     return query_id

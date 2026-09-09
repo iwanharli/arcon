@@ -4,9 +4,11 @@
 *.session-journal
 # tests/values.py berisi NIK/nama/nomor HP asli
 tests/values.py
-# tests/results/ berisi hasil query data pribadi
+# tests/results/ berisi hasil query data pribadi (kalau dibuat lagi)
 tests/results/
 logs/
+# docs/panduan_api_artemis.pdf memuat API key produksi
+docs/panduan_api_artemis.pdf
 
 # ── Lingkungan & cache ──
 .venv/
