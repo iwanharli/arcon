@@ -73,17 +73,18 @@ async def lookup(conn, bot: str, cmd: str, value: str) -> dict | None:
 
 
 async def cached_row(conn, bot: str, cmd: str, value: str) -> dict | None:
-    """Baris cache TERBARU untuk (bot, cmd, value) status 'found'.
+    """Baris cache TERBARU untuk (bot, cmd, value) — status apa pun.
 
-    Beda dengan lookup: TIDAK memfilter command volatile — dipakai recheck
-    Artemis yang hanya membaca database (tanpa hit Telegram), jadi hasil
-    volatile (mis. /cptsel) yang sudah pernah tersimpan tetap bisa diambil.
+    Beda dengan lookup: TIDAK memfilter status/volatile — dipakai recheck
+    Artemis yang hanya membaca database (tanpa hit Telegram), dan dipakai
+    DEBUG membaca balasan mentah (raw_text) walau hasilnya not_found.
+    Pemanggil menilai sendiri lewat kolom status: 'found' = hasil temuan.
     """
     async with conn.cursor() as cur:
         await cur.execute(
             """
             SELECT * FROM bot_query_cache
-             WHERE bot = %s AND cmd = %s AND value = %s AND status = 'found'
+             WHERE bot = %s AND cmd = %s AND value = %s
              ORDER BY tested_at DESC
              LIMIT 1
             """,

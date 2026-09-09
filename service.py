@@ -190,6 +190,11 @@ async def query(tg, conn, bot: str, cmd: str, value: str, *,
                       "msg": result.get("msg") or "Foto ditemukan.",
                       "fields": result.get("fields")}
 
+    log.info("verdict %s %s %s -> status=%s fields=%s teks=%d media=%d",
+             bot, cmd, value, result["status"],
+             "ada" if result.get("fields") else "null",
+             len([t for t in texts if t]), len(media_blobs))
+
     await db.store_result(conn, bot, cmd, value, result["status"],
                           result["msg"], result["fields"],
                           media=media_blobs or None,

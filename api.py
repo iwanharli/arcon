@@ -224,22 +224,26 @@ async def app_logs_list(username: str | None = Query(None),
 
 @app.get("/app/cached", dependencies=[Depends(auth)])
 async def app_cached(bot: str = Query(...), cmd: str = Query(...), value: str = Query(...)):
-    """Baris cache terbaru (status 'found') untuk (bot, cmd, value).
+    """Baris cache terbaru untuk (bot, cmd, value) — DB-ONLY, tanpa Telegram.
 
-    DB-ONLY — TIDAK menyentuh Telegram. Dipakai Artemis untuk recheck:
-    ambil hasil temuan yang sudah pernah tersimpan di bot_query_cache.
+    `found: true` hanya kalau status 'found' (hasil temuan). Untuk DEBUG,
+    status lain (not_found/no_response) ikut dikembalikan + raw_text balasan
+    mentah supaya kita bisa lihat apa yang bot balas tanpa hit ulang.
     """
     row = await db.cached_row(state["conn"], bot, cmd, value)
     if not row:
         return {"ok": True, "found": False}
+    found = row["status"] == "found"
     media = [f"/media/{i}" for i in (row.get("media") or [])]
     return {
         "ok": True,
-        "found": True,
+        "found": found,
         "status": row["status"],
         "msg": row.get("msg"),
         "fields": N.rapikan_nama_field(row.get("fields")),
         "media": media,
+        "raw_text": row.get("raw_text"),
+        "tested_at": str(row["tested_at"]),
     }
 
 
