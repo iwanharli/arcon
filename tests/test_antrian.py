@@ -64,3 +64,19 @@ async def test_bot_berbeda_tidak_digabung(conn, nilai):
     a = await jobs.enqueue(conn, "bot1", "/nik", nilai)
     b = await jobs.enqueue(conn, "bot2", "/getphone", nilai)
     assert str(a["job_id"]) != str(b["job_id"])
+
+
+async def test_job_tersangkut_dikembalikan(conn, nilai):
+    """Job yang mati di tengah jalan harus bisa diulang.
+
+    _claim_next() hanya mengambil 'queued', jadi baris yang tertinggal
+    'running' setelah restart tidak pernah diulang maupun selesai.
+    """
+    job = await jobs.enqueue(conn, "bot1", "/nik", nilai)
+    async with conn.cursor() as cur:
+        await cur.execute("UPDATE search_jobs SET state='running' WHERE job_id=%s",
+                          (job["job_id"],))
+    assert await jobs.pulihkan_tersangkut(conn) >= 1
+    async with conn.cursor() as cur:
+        await cur.execute("SELECT state FROM search_jobs WHERE job_id=%s", (job["job_id"],))
+        assert (await cur.fetchone())["state"] == "queued"
