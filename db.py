@@ -162,8 +162,35 @@ async def app_session_clear(conn, username: str) -> int:
 
 # ------------------------------------------------------------- user_logs
 
+# Auto-buat tabel kalau belum ada — migrasi manual arcon gampang terlewat,
+# endpoint log tidak boleh 500 gara-gara tabel hilang.
+
+async def ensure_user_logs(conn) -> None:
+    async with conn.cursor() as cur:
+        await cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS user_logs (
+                id         bigserial PRIMARY KEY,
+                username   text NOT NULL,
+                event      text NOT NULL,
+                detail     jsonb,
+                created_at timestamptz NOT NULL DEFAULT now()
+            )
+            """
+        )
+        await cur.execute(
+            "CREATE INDEX IF NOT EXISTS user_logs_user_time_idx "
+            "ON user_logs (username, created_at DESC)"
+        )
+        await cur.execute(
+            "CREATE INDEX IF NOT EXISTS user_logs_time_idx "
+            "ON user_logs (created_at DESC)"
+        )
+
+
 async def log_insert(conn, username: str, event: str,
                      detail: dict | None = None) -> int:
+    await ensure_user_logs(conn)
     async with conn.cursor() as cur:
         await cur.execute(
             """
@@ -178,6 +205,7 @@ async def log_insert(conn, username: str, event: str,
 
 async def log_list(conn, username: str | None = None, limit: int = 200) -> list[dict]:
     """Log aktivitas, terbaru dulu. `username=None` = semua user (admin)."""
+    await ensure_user_logs(conn)
     async with conn.cursor() as cur:
         if username:
             await cur.execute(
