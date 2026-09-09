@@ -584,10 +584,18 @@ class TelegramConnector:
         log.info("%d kandidat ditemukan di %s (dari %d pesan), ditelusuri maks %d",
                  len(tombol), bot, len(pesan), maks)
         terkumpul: list[Message] = []
+        import parser as _p
+
         for ke, (msg, baris, kolom, data) in enumerate(tombol[:maks], 1):
             def _isi(m: Message) -> bool:
                 t = (m.text or "")
                 if any(x in t.lower() for x in markers):
+                    return False
+                # Peringatan kerahasiaan mendahului detail dan BUKAN ack, jadi
+                # tanpa pengecualian ini penelusuran berhenti di situ — kandidat
+                # berikutnya diklik sebelum detail yang ini datang, dan
+                # detailnya tidak pernah tersimpan.
+                if _p.is_preamble(t):
                     return False
                 return bool(t.strip()) or m.media is not None
 
@@ -596,9 +604,12 @@ class TelegramConnector:
                 log.info("-> kandidat %d/%d: %s", ke, min(len(tombol), maks), _d)
 
             hasil = await self._tunggu(entity, _isi, step_timeout, aksi=_klik)
-            if not hasil:
-                log.warning("kandidat %s tidak menjawab", data)
-                continue
+            isi = [m for m in hasil if _isi(m)]
+            if not isi:
+                log.warning("kandidat %s tidak menjawab dalam %.0fs", data, step_timeout)
+            else:
+                log.info("kandidat %d/%d: %d pesan detail",
+                         ke, min(len(tombol), maks), len(isi))
             terkumpul += hasil
             if linger:
                 await asyncio.sleep(linger)      # beri jeda antar kandidat
