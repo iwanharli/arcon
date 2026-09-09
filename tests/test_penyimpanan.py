@@ -197,3 +197,25 @@ def test_identitas_dibandingkan_per_jenis():
     nik = "3275054503060005"
     assert S.relates_to_request(nik, ["x"], {"nik": "3201010101010001"}) is False
     assert S.relates_to_request(hp, ["x"], {"nomor": "6281111111111"}) is False
+
+
+def test_nama_field_bertanda_hubung_dan_bernomor():
+    """Dua kebiasaan bot yang dulu merusak parsing.
+
+    - "4. PBI-JK: TIDAK" tidak dikenali sama sekali karena KV_RE menolak tanda
+      hubung, sehingga barisnya HILANG.
+    - "1. DESIL:" ikut membawa nomor urut daftar ke nama field, jadi tiap butir
+      jadi field berbeda (n_1_desil) dan skemanya berubah mengikuti urutan.
+    """
+    import normalize as N
+    import parser as P
+
+    rec, _ = P.parse_reply("1. DESIL: 6-10\n2. SEMBAKO: TIDAK\n4. PBI-JK: TIDAK")
+    assert rec, "baris tidak terurai"
+    kunci = set(rec[0])
+    assert {"desil", "sembako"} <= kunci, kunci
+    assert any("pbi" in k for k in kunci), "baris bertanda hubung hilang"
+    assert not any(k.startswith("n_") for k in kunci), "nomor urut ikut jadi nama"
+
+    assert N.slug_key("PBI-JK") == "pbi_jk"
+    assert N.slug_key("MA-RI") == "ma_ri"
