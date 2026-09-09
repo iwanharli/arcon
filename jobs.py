@@ -33,9 +33,31 @@ async def enqueue(conn, bot: str, cmd: str, value: str, *,
                   force: bool = False) -> dict:
     """Masukkan job ke antrian. Kembalikan barisnya.
 
+    Kalau permintaan yang sama persis masih mengantre, job itu yang dipakai
+    ulang (prioritasnya dinaikkan bila perlu) alih-alih membuat job kedua.
+
     force=True memaksa worker menembak Telegram walau nilainya ada di cache
     (dipakai healthcheck).
     """
+    async with conn.cursor() as cur:
+        # Gabungkan dengan job identik yang MASIH mengantre (index parsial
+        # uq_jobs_antre, migrasi 013). Dua permintaan yang sama tidak boleh
+        # menembak bot dua kali — kuota harian per fitur terlalu mahal.
+        await cur.execute(
+            """
+            INSERT INTO search_jobs (bot, cmd, value, requested_by, priority, force)
+            VALUES (%s, %s, %s, %s, %s, %s)
+            ON CONFLICT (bot, cmd, value, force) WHERE state = 'queued'
+            DO UPDATE SET priority = GREATEST(search_jobs.priority, EXCLUDED.priority)
+            RETURNING *
+            """,
+            (bot, cmd, value, requested_by, priority, force),
+        )
+        row = await cur.fetchone()
+    if row is not None:
+        return row
+    # Balapan sangat sempit: job-nya baru saja diambil worker antara INSERT
+    # dan pembacaan. Masukkan sebagai job baru.
     async with conn.cursor() as cur:
         await cur.execute(
             """

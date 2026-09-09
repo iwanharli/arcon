@@ -1,7 +1,7 @@
 """Pengecekan kesehatan seluruh command, dijalankan sehari sekali.
 
     python healthcheck.py            # cek semua command yang punya probe
-    python healthcheck.py bot3       # cek satu bot saja
+    python healthcheck.py bot1       # cek satu bot saja
     python healthcheck.py --report   # tampilkan hasil terakhir, tanpa hit bot
 
 Dijadwalkan lewat pm2 (cron_restart) tiap hari jam 02:00 WIB.
@@ -17,6 +17,10 @@ Cara kerja penting:
 * Tiap probe memakai nilai yang SUDAH TERBUKTI kondisinya (kolom expect_status),
   supaya 'not_found' tidak ambigu antara "command rusak" dan "data memang tidak
   ada".
+* Kuota harian per fitur yang habis DILEWATI, tidak dihitung gagal dan tidak
+  dicatat. Bot menolak sementara dan besok normal lagi; menghitungnya sebagai
+  kerusakan membuat laporan harian penuh alarm palsu dan mencemari riwayat
+  kesehatan command.
 """
 from __future__ import annotations
 
@@ -29,6 +33,7 @@ import urllib.error
 import urllib.request
 
 import db
+import parser
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("artemis.health")
@@ -150,7 +155,7 @@ async def jalankan(bot: str | None = None) -> int:
         return 0
 
     log.info("mulai cek %d command lewat API %s", len(probes), API_BASE)
-    sehat = gagal = 0
+    sehat = gagal = dilewati = 0
 
     for i, probe in enumerate(probes, 1):
         try:
@@ -160,6 +165,19 @@ async def jalankan(bot: str | None = None) -> int:
             msg = hasil.get("msg")
         except (urllib.error.URLError, TimeoutError, KeyError) as exc:
             status, msg = "no_response", f"gagal panggil API: {exc!r}"
+
+        # Kuota harian per fitur habis bukan kerusakan: bot menolak sementara
+        # dan besok normal lagi. Kalau ini dihitung gagal, laporan harian akan
+        # penuh alarm palsu — dari 101 query uji, 50 di antaranya kuota habis.
+        # Tidak dicatat sama sekali supaya riwayat kesehatan tidak tercemar
+        # oleh kondisi yang bukan soal command-nya.
+        if status == "queue_without_data" and parser.is_limited(msg):
+            dilewati += 1
+            log.info("[%2d/%d] %s %-14s %-19s DILEWATI (kuota harian)",
+                     i, len(probes), probe["bot"], probe["cmd"], status)
+            if i < len(probes):
+                await asyncio.sleep(JEDA_ANTAR_PROBE)
+            continue
 
         ok = status == probe["expect_status"]
         sehat, gagal = (sehat + 1, gagal) if ok else (sehat, gagal + 1)
@@ -171,7 +189,8 @@ async def jalankan(bot: str | None = None) -> int:
         if i < len(probes):
             await asyncio.sleep(JEDA_ANTAR_PROBE)
 
-    log.info("selesai: %d sehat, %d gagal", sehat, gagal)
+    log.info("selesai: %d sehat, %d gagal, %d dilewati (kuota harian)",
+             sehat, gagal, dilewati)
     await tampilkan_bermasalah(conn)
     await conn.close()
     return 0

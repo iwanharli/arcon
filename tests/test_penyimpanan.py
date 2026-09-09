@@ -1,0 +1,153 @@
+"""Jaring pengaman penyimpanan — TIDAK menyentuh Telegram, jadi tanpa kuota.
+
+Menguji bahwa hasil ber-status 'found' tidak pernah hilang senyap walaupun
+normalizer tidak mengenalinya atau tabel tujuannya menolak.
+"""
+import uuid
+
+import pytest
+
+import db
+
+pytestmark = pytest.mark.asyncio
+
+
+@pytest.fixture()
+def nilai():
+    """Nilai unik tiap kali dijalankan.
+
+    profile_records punya UNIQUE (kind, subject, data) dengan ON CONFLICT DO
+    NOTHING, jadi memakai nilai tetap membuat test lulus sekali lalu gagal di
+    jalan kedua: barisnya sudah ada dan source_query_id-nya milik query lama.
+    """
+    return f"UJI-{uuid.uuid4().hex[:8]}"
+
+
+@pytest.fixture(autouse=True)
+async def bersihkan(conn):
+    yield
+    async with conn.cursor() as cur:
+        await cur.execute("DELETE FROM bot_query_cache WHERE value LIKE 'UJI-%%'")
+        await cur.execute("DELETE FROM profile_records WHERE subject LIKE 'UJI-%%'")
+        await cur.execute("DELETE FROM profiles WHERE nama LIKE 'UJI-%%'")
+
+
+async def _records(conn, query_id):
+    async with conn.cursor() as cur:
+        await cur.execute(
+            "SELECT kind, subject, data FROM profile_records WHERE source_query_id = %s",
+            (query_id,))
+        return await cur.fetchall()
+
+
+async def test_atribut_luar_kolom_turun_ke_records(conn, nilai):
+    """profiles cuma punya kolom kependudukan baku. Atribut lain (mis. NIK
+    INSIGHT mengembalikan 28 field seperti neptu/generasi) harus tetap
+    tersimpan di profile_records, bukan dibuang."""
+    qid = await db.store_result(
+        conn, "bot1", "/nama", nilai, "found",
+        fields={"nama": nilai, "alamat": "JL MAWAR 1",
+                "neptu": "13", "generasi": "MILENIAL"})
+    rows = await _records(conn, qid)
+    assert rows, "atribut di luar kolom profiles hilang"
+    data = rows[0]["data"]
+    assert data.get("neptu") == "13" and data.get("generasi") == "MILENIAL"
+    assert "alamat" not in data, "kolom profiles tidak perlu digandakan"
+
+
+async def test_bentuk_asing_tetap_tersimpan(conn, nilai):
+    """Balasan yang tidak dikenali normalizer (mis. data non-orang di route
+    yang memakai normalize_person) harus tetap tersimpan mentah."""
+    qid = await db.store_result(
+        conn, "bot1", "/nik", nilai, "found",
+        fields={"asn": nilai, "isp": "PT CONTOH", "route": "10.0.0.0/8"})
+    rows = await _records(conn, qid)
+    assert rows, "bentuk asing hilang — jaring pengaman tidak bekerja"
+    assert rows[0]["data"].get("asn") == nilai.upper()
+
+
+async def test_profil_tanpa_nik_tersimpan(conn, nilai):
+    """Skema merancang `nik` nullable untuk hasil cari-by-nama, tapi
+    upsert_profile dulu menolaknya. Harus masuk profiles, dan tidak boleh
+    menumpuk duplikat kalau query yang sama diulang."""
+    async def simpan():
+        return await db.store_result(
+            conn, "bot1", "/paspor", nilai, "found",
+            fields={"nama": nilai, "tgl._lahir": "09/07/1974",
+                    "no._paspor": "AB000000"})
+
+    await simpan()
+    await simpan()                      # ulangi: harus idempoten
+    async with conn.cursor() as cur:
+        await cur.execute("SELECT id, nik FROM profiles WHERE lower(nama) = lower(%s)",
+                          (nilai,))
+        rows = await cur.fetchall()
+    assert len(rows) == 1, f"profil tanpa NIK menumpuk: {len(rows)} baris"
+    assert rows[0]["nik"] is None
+
+
+async def test_not_found_tidak_bikin_record(conn, nilai):
+    """Status selain found memang hanya boleh masuk cache."""
+    qid = await db.store_result(
+        conn, "bot1", "/nik", nilai, "not_found",
+        fields=None, msg="Tidak ditemukan")
+    assert await _records(conn, qid) == []
+
+
+async def test_cache_selalu_tersimpan(conn, nilai):
+    """Lapis cache tidak boleh punya syarat apa pun."""
+    for status in ("found", "not_found", "queue_without_data", "no_response"):
+        qid = await db.store_result(conn, "bot1", "/nik", f"{nilai}-{status}", status)
+        async with conn.cursor() as cur:
+            await cur.execute("SELECT status, bot_username FROM bot_query_cache WHERE id = %s",
+                              (qid,))
+            row = await cur.fetchone()
+        assert row["status"] == status
+        assert row["bot_username"] == "teamkhususantibanditbot"
+
+
+async def test_record_tertaut_ke_profil_tanpa_nik(conn, nilai):
+    """Record harus tertaut ke profilnya walau profil itu ber-NIK NULL.
+
+    find_profile_id() hanya bisa mencari lewat NIK, jadi tanpa profile_id yang
+    diteruskan langsung, catatan tersimpan tapi menggantung — GET /profiles/id
+    mengembalikan catatan kosong padahal datanya ada.
+    """
+    await db.store_result(
+        conn, "bot1", "/paspor", nilai, "found",
+        fields={"nama": nilai, "no._paspor": "AB000000", "nikim": "0001"})
+    async with conn.cursor() as cur:
+        await cur.execute(
+            """
+            SELECT count(r.id) AS n
+              FROM profiles p JOIN profile_records r ON r.profile_id = p.id
+             WHERE lower(p.nama) = lower(%s)
+            """, (nilai,))
+        n = (await cur.fetchone())["n"]
+    assert n >= 1, "record tidak tertaut ke profil tanpa NIK"
+
+
+async def test_hapus_cache_ikut_hapus_turunan(conn, nilai):
+    """Menghapus baris cache harus ikut menghapus lapis turunannya.
+
+    Dengan ON DELETE SET NULL, record yatim tertinggal DAN — karena
+    UNIQUE (kind, subject, data) + ON CONFLICT DO NOTHING — ia MENAHAN insert
+    baru yang isinya sama, sehingga hasil query terbaru diam-diam hilang.
+    """
+    qid = await db.store_result(
+        conn, "bot1", "/bpom", nilai, "found",
+        fields={"nama": nilai, "nie": "MD-UJI-001"})
+    assert await _records(conn, qid)
+
+    async with conn.cursor() as cur:
+        await cur.execute("DELETE FROM bot_query_cache WHERE id = %s", (qid,))
+        await cur.execute(
+            "SELECT count(*) AS n FROM profile_records WHERE subject = %s", (nilai,))
+        sisa = (await cur.fetchone())["n"]
+    assert sisa == 0, "turunan tidak ikut terhapus — akan menahan insert berikutnya"
+
+    # query ulang dengan isi sama harus tersimpan lagi, bukan tertahan
+    qid2 = await db.store_result(
+        conn, "bot1", "/bpom", nilai, "found",
+        fields={"nama": nilai, "nie": "MD-UJI-001"})
+    assert await _records(conn, qid2), "insert baru tertahan sisa lama"

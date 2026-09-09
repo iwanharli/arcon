@@ -35,38 +35,35 @@ ADMIN_IDS = {int(x) for x in os.getenv("BOT_ADMIN_IDS", "").replace(" ", "").spl
 
 # key -> (emoji, judul, [(emoji, label, bot, cmd, contoh)])
 MENU = {
-    "penduduk": ("🧾", "Kependudukan", [
-        ("🔎", "Demografi (NIK)",       "bot1", "/nik",     "3201234567890001"),
-        ("📋", "Biodata lengkap (NIK)", "bot1", "/bionik",  "3201234567890001"),
-        ("👨‍👩‍👧", "Kartu Keluarga (KK)", "bot1", "/kk",    "3201234567890001"),
-        ("🔤", "Cari dari Nama",        "bot1", "/nama",    "Budi Santoso"),
-        ("🪪", "Foto E-KTP",            "bot1", "/foto",    "3201234567890001"),
+    "penduduk": ("\U0001F9FE", "Kependudukan", [
+        ("\U0001F50E", "Demografi (NIK)",       "bot1", "/nik",       "3201234567890001"),
+        ("\U0001F468\u200D\U0001F469\u200D\U0001F467", "Kartu Keluarga (KK)", "bot1", "/kk", "3201234567890001"),
+        ("\U0001FAAA", "Foto E-KTP",            "bot1", "/foto",      "3201234567890001"),
+        ("\U0001F4C7", "Data Dukcapil",         "bot1", "/dukcapil",  "3201234567890001"),
+        ("\U0001F9E0", "NIK Insight",           "bot1", "/nikinsight", "3201234567890001"),
     ]),
-    "hp": ("📱", "Nomor HP", [
-        ("📇", "Registrasi nomor",      "bot1", "/reg",        "6281234567890"),
-        ("📲", "Nomor HP dari NIK",     "bot1", "/nohp",       "3201234567890001"),
-        ("🔬", "Profiling nomor",       "bot1", "/profnumber", "6281234567890"),
-        ("⏳", "Cek masa aktif",        "bot3", "/cekinfo",    "6281234567890"),
+    "hp": ("\U0001F4F1", "Nomor HP", [
+        ("\U0001F50D", "Cek nomor (Getphone)",  "bot2", "/getphone",  "6281234567890"),
+        ("\U0001F4F2", "Nomor HP dari NIK",     "bot1", "/phonebynik", "3201234567890001"),
+        ("\U0001FAAA", "NIK dari nomor",        "bot1", "/nikbyphone", "6281234567890"),
+        ("\u23F3", "Status kartu",              "bot1", "/statuskartu", "6281234567890"),
     ]),
-    "kendaraan": ("🚗", "Kendaraan", [
-        ("🔢", "Dari nopol",            "bot1", "/tnkb",     "B1234XYZ"),
-        ("⚙️", "Dari nomor mesin",      "bot1", "/nosin",    "nomor mesin"),
-        ("🧩", "Dari nomor rangka",     "bot1", "/noka",     "nomor rangka"),
-        ("🪪", "Dari NIK",              "bot1", "/niknopol", "3201234567890001"),
+    "kendaraan": ("\U0001F697", "Kendaraan", [
+        ("\U0001F522", "Data kendaraan",        "bot1", "/tnkb",      "B1234XYZ"),
     ]),
-    "lokasi": ("📍", "Lokasi", [
-        ("📡", "Lokasi Telkomsel",      "bot3", "/cptsel", "6281234567890"),
-        ("🛰️", "Lacak nomor",           "bot3", "/track",  "6281234567890"),
-        ("🗺️", "Linimasa lokasi",       "bot3", "/lm",     "6281234567890"),
+    "lokasi": ("\U0001F4CD", "Lokasi & Perangkat", [
+        ("\U0001F6F0\uFE0F", "Tracking phone", "bot1", "/track",     "6281234567890"),
+        ("\U0001F4E1", "LBS Plus",              "bot1", "/lbs",       "6281234567890"),
+        ("\U0001F4DF", "Detail IMEI",           "bot1", "/imei",      "IMEI 15 digit"),
     ]),
-    "lainnya": ("🗂️", "Data Lain", [
-        ("🏥", "BPJS (dari NIK)",       "bot1", "/bpjs",       "3201234567890001"),
-        ("💡", "PLN",                   "bot1", "/pln",        "ID pelanggan"),
-        ("🚨", "DPO",                   "bot1", "/dpo",        "nama"),
-        ("🧑‍🏫", "Guru",                 "bot1", "/guru",       "nama"),
-        ("🏢", "Perusahaan (PT)",       "bot3", "/pt",         "nama perusahaan"),
-        ("💧", "Kebocoran data",        "bot3", "/leak",       "email / nomor / nik"),
-        ("📧", "Email",                 "bot3", "/emailstalker", "nama@email.com"),
+    "lainnya": ("\U0001F5C2\uFE0F", "Data Lain", [
+        ("\U0001F4A1", "PLN",                   "bot1", "/pln",       "ID pelanggan"),
+        ("\U0001F6A8", "DPO",                   "bot1", "/dpo",       "nama"),
+        ("\U0001F9D1\u200D\U0001F3EB", "Guru", "bot1", "/guru",     "nama"),
+        ("\U0001F3E6", "Data bank",             "bot1", "/bank",      "nomor rekening"),
+        ("\U0001F6C2", "Data paspor",           "bot1", "/paspor",    "nomor paspor"),
+        ("\U0001F393", "PDDIKTI",               "bot1", "/pddikti",   "nama / NIM"),
+        ("\U0001F4B0", "Data DJP",              "bot1", "/djp",       "NPWP / nama"),
     ]),
 }
 

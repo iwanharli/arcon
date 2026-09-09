@@ -16,6 +16,8 @@ Telegram dan memproses job berurutan.
 from __future__ import annotations
 
 import asyncio
+import json
+import pathlib
 import logging
 import os
 from contextlib import asynccontextmanager
@@ -73,9 +75,9 @@ def auth(x_api_key: str | None = Header(default=None)) -> None:
 # --------------------------------------------------------------- schemas
 
 class SearchRequest(BaseModel):
-    # `bot` tidak lagi di body — dibedakan lewat path /search/{bot}. Ini perlu
-    # karena 7 command (/nik, /kk, /reg, /nama, /nohp, /bpjs, /guru) ada di dua
-    # bot sekaligus, jadi command saja tidak cukup untuk menentukan tujuan.
+    # `bot` ditentukan lewat path /search/{bot}, bukan body. Nama command bisa
+    # sama di lebih dari satu bot, jadi command saja tidak cukup untuk
+    # menentukan tujuan. Daftar command per bot ada di GET /commands.
     cmd: str = Field(..., examples=["/nik"])
     value: str = Field(..., min_length=1, examples=["3201010101010001"])
     requested_by: str | None = Field(None, description="identitas user/modul di Artemis")
@@ -246,16 +248,40 @@ async def health():
     return {"ok": True, "antrian": stats}
 
 
+def _katalog_skema() -> dict:
+    """Bentuk data per command dari docs/skema.json (dibuat oleh skema.py).
+
+    Dibaca saat diminta, bukan di-cache, supaya `python skema.py --tulis`
+    langsung terlihat tanpa perlu me-restart API. Filenya kecil.
+    """
+    berkas = pathlib.Path(__file__).parent / "docs" / "skema.json"
+    try:
+        return json.loads(berkas.read_text(encoding="utf8"))
+    except (OSError, ValueError):
+        return {}
+
+
 @app.get("/commands", dependencies=[Depends(auth)])
 async def list_commands():
-    """Daftar command yang bisa dipanggil Artemis, dikelompokkan per bot."""
+    """Daftar command yang bisa dipanggil Artemis, dikelompokkan per bot.
+
+    Menyertakan BENTUK DATA tiap command (`atribut`) supaya aplikasi tidak
+    perlu menebak field apa yang akan diterima. `terverifikasi=false` berarti
+    command itu belum pernah menghasilkan data, jadi daftar atributnya belum
+    diketahui — bukan berarti kosong.
+    """
+    katalog = _katalog_skema()
     out: dict[str, list[dict]] = {}
     for (bot, cmd), route in sorted(routes.ROUTES.items()):
+        skema = katalog.get(f"{bot}{cmd}", {})
         out.setdefault(bot, []).append({
             "cmd": cmd,
             "target": route.target,
             "kind": route.kind,
             "always_fresh": route.volatile,   # tidak pernah dijawab dari cache
+            "menu": route.menu,               # None = dialek command biasa
+            "atribut": skema.get("atribut", []),
+            "terverifikasi": skema.get("terverifikasi", False),
         })
     return out
 
@@ -363,12 +389,56 @@ async def health_commands(hanya_bermasalah: bool = Query(False)):
     }
 
 
+@app.get("/profiles", dependencies=[Depends(auth)])
+async def cari_profil(
+    nama: str | None = Query(None, min_length=2, description="cocokkan sebagian nama"),
+    limit: int = Query(20, ge=1, le=100),
+):
+    """Cari profil di database berdasarkan nama (tanpa menyentuh Telegram).
+
+    Perlu karena `profiles.nik` boleh NULL: hasil pencarian by-nama sering
+    tidak menyertakan NIK (lihat migrasi 012), sehingga profil seperti itu
+    tidak bisa diambil lewat GET /profiles/{nik} sama sekali.
+
+    Mengembalikan ringkasan saja; detail lengkap tetap lewat
+    GET /profiles/{nik} untuk yang punya NIK, atau `id` di sini.
+    """
+    if not nama:
+        raise HTTPException(status_code=400, detail="parameter `nama` wajib diisi")
+
+    conn = state["conn"]
+    async with conn.cursor() as cur:
+        await cur.execute(
+            """
+            SELECT id, nik, nama, tempat_lahir, tanggal_lahir, jenis_kelamin,
+                   alamat, kel_desa, kecamatan, kab_kota, provinsi, updated_at
+              FROM profiles
+             WHERE nama ILIKE %s
+             ORDER BY (nik IS NULL), nama
+             LIMIT %s
+            """,
+            (f"%{nama}%", limit),
+        )
+        rows = await cur.fetchall()
+    return {"total": len(rows), "profil": rows}
+
+
+@app.get("/profiles/id/{profile_id}", dependencies=[Depends(auth)])
+async def get_profile_by_id(profile_id: int):
+    """Detail profil lewat id — satu-satunya cara untuk profil tanpa NIK."""
+    return await _detail_profil(state["conn"], "id = %s", (profile_id,))
+
+
 @app.get("/profiles/{nik}", dependencies=[Depends(auth)])
 async def get_profile(nik: str):
     """Ambil profil langsung dari database (tanpa menyentuh Telegram)."""
-    conn = state["conn"]
+    return await _detail_profil(state["conn"], "nik = %s", (nik,))
+
+
+async def _detail_profil(conn, where: str, params: tuple) -> dict:
+    """Profil + nomor HP + kendaraan + catatan, dipakai kedua endpoint detail."""
     async with conn.cursor() as cur:
-        await cur.execute("SELECT * FROM profiles WHERE nik = %s", (nik,))
+        await cur.execute(f"SELECT * FROM profiles WHERE {where}", params)
         profil = await cur.fetchone()
         if profil is None:
             raise HTTPException(status_code=404, detail="profil belum ada di database")
@@ -379,9 +449,15 @@ async def get_profile(nik: str):
         )
         telepon = await cur.fetchall()
         await cur.execute(
+            "SELECT nopol, merk, tipe, tahun, warna FROM profile_vehicles WHERE profile_id = %s",
+            (profil["id"],),
+        )
+        kendaraan = await cur.fetchall()
+        await cur.execute(
             "SELECT kind, data, created_at FROM profile_records WHERE profile_id = %s",
             (profil["id"],),
         )
         catatan = await cur.fetchall()
 
-    return {"profil": profil, "telepon": telepon, "catatan": catatan}
+    return {"profil": profil, "telepon": telepon,
+            "kendaraan": kendaraan, "catatan": catatan}
