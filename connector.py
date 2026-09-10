@@ -414,12 +414,20 @@ class TelegramConnector:
     # Tombol "halaman berikutnya" pada daftar hasil. Tiap fitur memberi nama
     # callback-nya sendiri (bpom_page:2, notaris_page:2, ...), jadi dicocokkan
     # lewat pola umum, bukan daftar tetap.
-    NEXT_RE = re.compile(r"(page|halaman)\s*[:_-]?\s*\d+", re.IGNORECASE)
+    #
+    # TOMBOL MUNDUR ikut cocok dengan pola itu (callback `imigrasi_page:1` juga
+    # ber-`page:1`), jadi arah tidak boleh ditebak dari callback data saja:
+    # percobaan pertama lewat LABEL ("Next ➡️"), dan kalau tidak ada, tombol
+    # berlabel mundur dibuang dulu. Tanpa itu, halaman terakhir bisa mengklik
+    # tombol ⬅️ dan penelusuran berputar ke halaman sebelumnya.
+    NEXT_RE = re.compile(r"(page|halaman)\s*[:_-]?\s*(\d+)", re.IGNORECASE)
     NEXT_TEKS = ("next", "selanjutnya", "berikutnya", "➡", "▶")
+    MUNDUR_TEKS = ("prev", "sebelumnya", "kembali", "back", "⬅", "◀", "⏪")
 
     @classmethod
     def _tombol_next(cls, msgs):
         """Cari tombol 'halaman berikutnya'. Kembalikan (message, baris, kolom)."""
+        kandidat = []                      # (nomor halaman, msg, baris, kolom)
         for m in msgs:
             mk = m.reply_markup
             if not mk or not getattr(mk, "rows", None):
@@ -429,10 +437,20 @@ class TelegramConnector:
                     data = (getattr(b, "data", None) or b"").decode("utf8", "replace")
                     teks = (b.text or "").lower()
                     if "noop" in data.lower():
-                        continue                      # indikator "1/283", bukan tombol
-                    if any(t in teks for t in cls.NEXT_TEKS) or cls.NEXT_RE.search(data):
-                        return m, i, j
-        return None
+                        continue                  # indikator "1/283", bukan tombol
+                    if any(t in teks for t in cls.NEXT_TEKS):
+                        return m, i, j            # label paling jelas: pakai ini
+                    if any(t in teks for t in cls.MUNDUR_TEKS):
+                        continue                  # tombol mundur, bukan berikutnya
+                    cocok = cls.NEXT_RE.search(data)
+                    if cocok:
+                        kandidat.append((int(cocok.group(2)), m, i, j))
+        if not kandidat:
+            return None
+        # Beberapa tombol bernomor tapi tanpa label arah: nomor TERBESAR yang
+        # paling mungkin halaman berikutnya (halaman sekarang = terkecil).
+        _, m, i, j = max(kandidat, key=lambda k: k[0])
+        return m, i, j
 
     async def telusuri_halaman(self, bot: str, pesan, maks: int = 1, *,
                                step_timeout: float = 60,

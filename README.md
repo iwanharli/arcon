@@ -715,10 +715,28 @@ sama** saat halaman berganti, jadi yang ditunggu adalah `MessageEdited`.
 hanya yang terakhir — kalau tidak, halaman berikutnya justru menimpa halaman
 pertama. Record identik antar halaman tidak digandakan.
 
+Arah tombol tidak boleh disimpulkan dari callback data: tombol MUNDUR memakai
+pola nama yang sama (`imigrasi_page:1` juga cocok regex `page` + angka), jadi
+`_tombol_next()` memilih lewat **label** lebih dulu ("Next ➡️"), dan kalau tidak
+ada label arah, kandidat berlabel mundur (⬅️/prev/kembali) dibuang dan nomor
+halaman terbesar yang dipakai. Tanpa itu halaman terakhir bisa mengklik ⬅️ dan
+penelusuran berputar. Diuji di `tests/test_halaman_telusuri.py` (klien Telegram
+dipalsukan; 5 halaman → 17 record lewat `parser.classify`).
+
 Diatur lewat env **`HALAMAN_MAKS`** (default `0` = perilaku lama). Defaultnya
 mati karena belum diketahui apakah menekan Next ikut memotong kuota harian per
 fitur. Terverifikasi dengan `HALAMAN_MAKS=2`: `/bpom` naik dari 5 menjadi
 **9 record**.
+
+Menarik halaman untuk SEMUA command mahal (kuota dihitung per fitur), jadi ada
+peta per command: **`HALAMAN_MAKS_CMD="nik=4,imigrasi=4"`** (nama command tanpa
+garis miring, huruf besar/kecil bebas). Entri di peta menang atas
+`HALAMAN_MAKS`; command yang tidak terdaftar tetap ikut nilai global. Kasus
+yang memicunya: `/nik` menyisipkan blok **IMIGRASI** ber-paginasi
+("Ditemukan: **17** data | Halaman 1/5"), dan tanpa mengikuti tombol Next
+hanya 4 dari 17 record yang tersimpan — kartu di aplikasi lalu menampilkan 4
+seolah itu seluruh datanya. Entri rusak di env diabaikan (bukan crash saat
+start); diuji di `tests/test_halaman.py`.
 
 ### Turunan ikut terhapus (migrasi 014)
 

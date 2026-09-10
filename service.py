@@ -270,6 +270,46 @@ FINAL_TIMEOUT = float(__import__("os").getenv("FINAL_TIMEOUT", "300"))  # 5 meni
 # per fitur — naikkan lewat env kalau kelengkapan data lebih penting.
 HALAMAN_MAKS = int(__import__("os").getenv("HALAMAN_MAKS", "0"))
 
+# Batas per command, mis. "imigrasi=4,nik=4" (nama command TANPA garis miring).
+# Dipakai kalau hanya fitur tertentu yang butuh halaman penuh: `/nik` menyisipkan
+# blok IMIGRASI "Ditemukan: 17 data | Halaman 1/5" — tanpa ini hanya 4 dari 17
+# record imigrasi yang pernah sampai ke cache, dan kartu di aplikasi ikut
+# menampilkan 4 saja seolah itu seluruh datanya.
+HALAMAN_MAKS_CMD = __import__("os").getenv("HALAMAN_MAKS_CMD", "")
+
+
+def _peta_halaman_cmd(teks: str) -> dict[str, int]:
+    """Urai `HALAMAN_MAKS_CMD` ("imigrasi=4, /nik=2") jadi {nama: halaman}."""
+    peta: dict[str, int] = {}
+    for bagian in teks.split(","):
+        bagian = bagian.strip()
+        if not bagian or "=" not in bagian:
+            continue
+        nama, _, angka = bagian.partition("=")
+        nama = nama.strip().lower().lstrip("/")
+        try:
+            n = int(angka.strip())
+        except ValueError:
+            continue                      # nilai ngawur diabaikan, bukan crash
+        if nama and n > 0:
+            peta[nama] = n
+    return peta
+
+
+PETA_HALAMAN_CMD = _peta_halaman_cmd(HALAMAN_MAKS_CMD)
+
+
+def batas_halaman(cmd: str) -> int:
+    """Jumlah halaman TAMBAHAN untuk `cmd`. Peta per-command menang atas global.
+
+    Dua-duanya bisa 0 (default) = hanya halaman pertama, perilaku lama.
+    """
+    nama = (cmd or "").strip().lower().lstrip("/")
+    if nama in PETA_HALAMAN_CMD:
+        return PETA_HALAMAN_CMD[nama]
+    return HALAMAN_MAKS
+
+
 # Command yang jawabannya bisa disertai foto (E-KTP, foto paspor, dsb).
 # Untuk ini kita menunggu sebentar SETELAH teks jawaban, supaya pesan foto
 # yang menyusul sebagai pesan terpisah ikut tertangkap.
@@ -384,10 +424,11 @@ async def _ask_and_parse(tg, bot: str, cmd: str, value: str,
     # buang preamble hukum & pesan milik permintaan lain sebelum diklasifikasi
     # Ikuti paginasi kalau diminta: halaman berikutnya digabung sebagai
     # balasan tambahan, lalu diurai bersama halaman pertama.
-    if HALAMAN_MAKS and replies:
+    maks_halaman = batas_halaman(cmd)
+    if maks_halaman and replies:
         try:
             replies = replies + await tg.telusuri_halaman(
-                bot, replies, HALAMAN_MAKS, ack_markers=parser.ACK_MARKERS)
+                bot, replies, maks_halaman, ack_markers=parser.ACK_MARKERS)
         except Exception as exc:                       # noqa: BLE001
             log.warning("%s %s: gagal menelusuri halaman: %r", bot, cmd, exc)
 
