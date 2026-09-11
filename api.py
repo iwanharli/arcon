@@ -22,8 +22,8 @@ import logging
 import os
 from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI, Header, HTTPException, Query, File, Form, UploadFile
-from fastapi.responses import FileResponse, Response
+from fastapi import Depends, FastAPI, Header, HTTPException, Query, File, Form, Request, UploadFile
+from fastapi.responses import FileResponse, JSONResponse, Response
 from pydantic import BaseModel, Field
 
 import appauth
@@ -75,8 +75,13 @@ state: dict = {}
 async def lifespan(app: FastAPI):
     tg = TelegramConnector()
     await tg.start()
-    conn = await db.connect()
-    worker_conn = await db.connect()
+    try:
+        conn = await db.connect()
+        worker_conn = await db.connect()
+    except Exception as exc:
+        log.error("GAGAL konek database db_artemis — cek Postgres (pg_isready). Sebab: %s", exc)
+        await tg.stop()
+        raise
 
     stop = asyncio.Event()
     task = asyncio.create_task(jobs.run_worker(tg, worker_conn, stop_event=stop))
@@ -94,6 +99,22 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Artemis Telegram Connector", version="1.0", lifespan=lifespan)
+
+
+@app.exception_handler(Exception)
+async def _jebakan_error(request: Request, exc: Exception):
+    """Jangan biarkan error jadi "Internal Server Error" polos tanpa jejak.
+
+    Sebelum ini, kalau Postgres mati, SEMUA endpoint yang menyentuh DB menjawab
+    500 dengan body teks 21 byte ("Internal Server Error") dan log kosong —
+    mustahil dibedakan dari bug lain. Kini: traceback lengkap dicatat dan klien
+    menerima JSON yang menyebut jenis errornya.
+    """
+    log.exception("error tak tertangani di %s %s", request.method, request.url.path)
+    return JSONResponse(
+        status_code=500,
+        content={"ok": False, "detail": "internal error: " + type(exc).__name__},
+    )
 
 
 def auth(x_api_key: str | None = Header(default=None)) -> None:
@@ -302,8 +323,20 @@ async def media(media_id: str):
 
 @app.get("/health")
 async def health():
-    stats = await jobs.queue_stats(state["conn"])
-    return {"ok": True, "antrian": stats}
+    """Status jujur: selalu 200, tapi `ok` menyatakan apakah DB terjangkau.
+
+    Sebelumnya endpoint ini 500 saat DB mati, sehingga tidak bisa dibedakan dari
+    "aplikasi ikut mati". Sekarang laporan hidup/matinya database tetap terbaca
+    di body (dipakai ArtemisID `/api/health` → `connector.ok`).
+    """
+    db_status = "ok"
+    stats = None
+    try:
+        stats = await jobs.queue_stats(state["conn"])
+    except Exception as exc:  # psycopg.OperationalError dsb: DB mati/putus
+        db_status = "error: " + type(exc).__name__
+        log.warning("health: database tidak terjangkau: %s", exc)
+    return {"ok": db_status == "ok", "db": db_status, "antrian": stats}
 
 
 def _katalog_skema() -> dict:
