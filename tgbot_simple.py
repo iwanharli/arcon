@@ -57,6 +57,7 @@ pending: dict[int, str] = {}          # user_id -> key fitur yang menunggu input
 busy: set[int] = set()
 tebak: dict[int, str] = {}            # user_id -> nilai diketik langsung, tunggu pilih fitur
 batal_ev: dict[int, asyncio.Event] = {}   # user_id -> sinyal Batal saat menunggu
+admin_aksi: dict[int, str] = {}       # admin_id -> 'add'|'del', menunggu ID user
 
 # Validasi input sebelum menembak bot (hemat kuota kalau salah ketik).
 HP_RE = re.compile(r"^(?:\+?62|0)8\d{7,12}$")
@@ -481,19 +482,45 @@ async def main() -> None:
         await ev.respond(f"🗑️ User `{target}` dihapus." if ok
                          else f"⚠️ `{target}` tidak ada / admin (tak bisa dihapus).")
 
+    async def teks_stats() -> str:
+        s = await statistik(conn)
+        a = s["antre"]
+        return ("📊 **Statistik**\n"
+                f"• Antrian: {a.get('queued', 0)} antre, {a.get('running', 0)} jalan\n"
+                f"• Hari ini: {s['hari']['n']} pencarian ({s['hari']['ok']} ketemu)\n"
+                f"• Total user: {s['users']}\n"
+                f"• Batas harian/user: {LIMIT_HARIAN or 'tanpa batas'}")
+
+    async def teks_users() -> str:
+        rows = await list_users(conn)
+        baris = []
+        for r in rows:
+            tag = "👑" if r["role"] == "admin" else "•"
+            seen = r["last_seen_at"].strftime("%d/%m %H:%M") if r["last_seen_at"] else "-"
+            baris.append(f"{tag} `{r['telegram_id']}` — {r['name'] or '-'} (aktif: {seen})")
+        return f"👥 **{len(rows)} user terdaftar**\n\n" + "\n".join(baris)
+
+    def kb_admin():
+        return [[Button.inline("👥 Daftar User", data="adm:users"),
+                 Button.inline("📊 Statistik", data="adm:stats")],
+                [Button.inline("➕ Tambah User", data="adm:add"),
+                 Button.inline("🗑️ Hapus User", data="adm:del")],
+                [Button.inline("🏠 Menu utama", data="home")]]
+
     @client.on(events.NewMessage(pattern=r"^/stats$"))
     async def _stats(ev):
         u = await boleh(ev.sender_id)
         if not u or u["role"] != "admin":
             return
-        s = await statistik(conn)
-        a = s["antre"]
-        await ev.respond(
-            "📊 **Statistik**\n"
-            f"• Antrian: {a.get('queued', 0)} antre, {a.get('running', 0)} jalan\n"
-            f"• Hari ini: {s['hari']['n']} pencarian ({s['hari']['ok']} ketemu)\n"
-            f"• Total user: {s['users']}\n"
-            f"• Batas harian/user: {LIMIT_HARIAN or 'tanpa batas'}")
+        await ev.respond(await teks_stats())
+
+    @client.on(events.NewMessage(pattern=r"^/admin$"))
+    async def _admin(ev):
+        u = await boleh(ev.sender_id)
+        if not u or u["role"] != "admin":
+            return
+        admin_aksi.pop(ev.sender_id, None)
+        await ev.respond("🛠️ **Panel Admin**\nPilih tindakan:", buttons=kb_admin())
 
     @client.on(events.NewMessage(pattern=r"^/whoami$"))
     async def _whoami(ev):
@@ -526,6 +553,26 @@ async def main() -> None:
                 await ev.answer("Membatalkan ...")
             else:
                 await ev.answer("Tidak ada pencarian berjalan.")
+            return
+        # Panel admin.
+        if data.startswith("adm:"):
+            u = await get_user(conn, uid)
+            if not u or u["role"] != "admin":
+                await ev.answer("Hanya admin.", alert=True)
+                return
+            aksi = data[4:]
+            if aksi == "users":
+                await ev.edit(await teks_users(), buttons=kb_admin())
+            elif aksi == "stats":
+                await ev.edit(await teks_stats(), buttons=kb_admin())
+            elif aksi == "add":
+                admin_aksi[uid] = "add"
+                await ev.edit("➕ Kirim **ID Telegram** user yang mau ditambahkan.\n"
+                              "(angka saja, atau /admin untuk batal)", buttons=kb_admin())
+            elif aksi == "del":
+                admin_aksi[uid] = "del"
+                await ev.edit("🗑️ Kirim **ID Telegram** user yang mau dihapus.\n"
+                              "(angka saja, atau /admin untuk batal)", buttons=kb_admin())
             return
         # Admin menekan "Izinkan" dari notifikasi permintaan akses.
         if data.startswith("izinkan:"):
@@ -692,7 +739,30 @@ async def main() -> None:
         if ev.raw_text.startswith("/"):
             return
         uid = ev.sender_id
-        if not await boleh(uid):
+        u = await boleh(uid)
+        if not u:
+            return
+        # Admin sedang menamb/hapus user lewat panel: tangkap ID di sini.
+        if u["role"] == "admin" and uid in admin_aksi:
+            aksi = admin_aksi.pop(uid)
+            t = ev.raw_text.strip()
+            if not t.isdigit():
+                await ev.respond("⚠️ ID harus angka. Ulangi lewat /admin.")
+                return
+            target = int(t)
+            if aksi == "add":
+                await add_user(conn, target, uid)
+                await ev.respond(f"✅ User `{target}` ditambahkan.", buttons=kb_admin())
+                try:
+                    await client.send_message(target, "✅ Akses Anda disetujui admin. "
+                                              "Ketik /start untuk mulai.")
+                except Exception:  # noqa: BLE001
+                    pass
+            else:
+                ok = await del_user(conn, target)
+                await ev.respond(f"🗑️ User `{target}` dihapus." if ok
+                                 else f"⚠️ `{target}` tidak ada / admin (tak bisa dihapus).",
+                                 buttons=kb_admin())
             return
         key = pending.get(uid)
         if not key:
