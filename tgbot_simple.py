@@ -324,6 +324,28 @@ def _label(k: str) -> str:
     return k.replace("_", " ").title()
 
 
+def potong_pesan(teks: str, maks: int = 4000) -> list[str]:
+    """Pecah teks panjang jadi beberapa bagian <= maks char (batas Telegram
+    ~4096). Diusahakan memotong di batas antar-record ("\\n\\n"), lalu per baris,
+    supaya kartu data tidak terbelah di tengah."""
+    if len(teks) <= maks:
+        return [teks]
+    bagian, buf = [], ""
+    for blok in teks.split("\n\n"):
+        if len(blok) > maks:                     # satu blok pun kepanjangan
+            for baris in blok.split("\n"):
+                if len(buf) + len(baris) + 1 > maks:
+                    bagian.append(buf.rstrip()); buf = ""
+                buf += baris + "\n"
+            continue
+        if len(buf) + len(blok) + 2 > maks:
+            bagian.append(buf.rstrip()); buf = ""
+        buf += blok + "\n\n"
+    if buf.strip():
+        bagian.append(buf.rstrip())
+    return bagian
+
+
 _LIMIT_KATA = ("batas penggunaan", "limit tercapai", "kuota", "quota", "coba lagi besok")
 
 
@@ -701,18 +723,16 @@ async def main() -> None:
         media = hasil.get("media") or []
         tombol = kb_hasil(murl_maps) if not media else None
 
-        # Hasil sangat panjang (KK banyak anggota) melebihi batas 1 pesan
-        # Telegram: kirim sebagai file .txt biar tidak terpotong.
-        if len(teks) > 3800:
-            import io
-            f = io.BytesIO(teks.encode())
-            f.name = f"{key}_{value_desc}.txt".replace("/", "_")
-            await tunggu.edit(f"✅ Hasil **{judul}** cukup panjang — dikirim sebagai file 👇",
-                              buttons=None)
-            await client.send_file(uid, f, buttons=tombol or kb_kembali(),
-                                   force_document=True)
-        else:
-            await tunggu.edit(teks, buttons=tombol, link_preview=False)
+        # Hasil panjang (KK banyak anggota) melebihi batas 1 pesan Telegram:
+        # dipecah jadi beberapa pesan teks, tombol menempel di pesan terakhir.
+        bagian = potong_pesan(teks)
+        await tunggu.edit(bagian[0],
+                          buttons=tombol if len(bagian) == 1 else None,
+                          link_preview=False)
+        for i, sisa in enumerate(bagian[1:]):
+            akhir = i == len(bagian) - 2
+            await client.send_message(uid, sisa, link_preview=False,
+                                      buttons=tombol if akhir else None)
 
         for i, murl in enumerate(media[:10]):
             try:
