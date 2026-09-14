@@ -82,6 +82,25 @@ async def get_job(conn, job_id: str) -> dict | None:
         return await cur.fetchone()
 
 
+async def cancel(conn, job_id: str) -> bool:
+    """Batalkan job yang MASIH mengantre. True kalau berhasil dibuang.
+
+    Job yang sudah 'running'/'done' tidak bisa dibatalkan — worker sudah atau
+    sedang menembak Telegram, jadi kuotanya sudah terpakai. Dipakai bot untuk
+    menolak permintaan saat antrian sudah terlalu panjang, tanpa memboroskan
+    kuota harian (job dibuang sebelum sempat menyentuh bot).
+    """
+    try:
+        uuid.UUID(str(job_id))
+    except (ValueError, TypeError):
+        return False
+    async with conn.cursor() as cur:
+        await cur.execute(
+            "DELETE FROM search_jobs WHERE job_id = %s AND state = 'queued' "
+            "RETURNING job_id", (job_id,))
+        return await cur.fetchone() is not None
+
+
 async def queue_position(conn, job_id: str) -> int | None:
     """Nomor antrian job (1 = berikutnya diproses). None kalau sudah jalan."""
     async with conn.cursor() as cur:

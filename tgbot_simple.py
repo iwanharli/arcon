@@ -50,7 +50,16 @@ INFO = {k: (emoji, judul, contoh, foto) for k, emoji, judul, contoh, foto in KAT
 pending: dict[int, str] = {}   # user_id -> key fitur yang menunggu input
 busy: set[int] = set()
 
-POLL_DEADLINE = 330            # detik; FR + telusuri kandidat bisa lama
+# Job yang menembak Telegram bisa lama: rata-rata terukur ~52 detik, maksimum
+# ~460 detik (FR + telusuri kandidat). Deadline poll dibuat 600 detik supaya
+# tampilan tidak menyerah sebelum hasil benar-benar datang.
+POLL_DEADLINE = 600            # detik
+# Perkiraan waktu per pencarian baru (avg ~52s + JEDA_ANTAR_JOB 10s), dipakai
+# menghitung estimasi tunggu yang ditampilkan ke user.
+PERKIRAAN_PER_JOB = 60         # detik
+# Antrian lebih panjang dari ini ditolak halus: user diminta coba beberapa
+# menit lagi, dan job-nya dibatalkan supaya tidak memboroskan kuota harian.
+MAX_ANTRE = 8
 
 
 # --------------------------------------------------------------- allowlist
@@ -138,17 +147,51 @@ def _fetch_media(url_path: str) -> bytes | None:
         return r.read()
 
 
+def _cancel_job(job_id: str) -> bool:
+    req = urllib.request.Request(f"{API_BASE}/jobs/{job_id}", method="DELETE",
+                                 headers=_headers())
+    try:
+        with urllib.request.urlopen(req, timeout=15) as r:
+            return bool(json.load(r).get("ok"))
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def _eta(detik: int) -> str:
+    """Detik -> teks estimasi ringkas: '±40 detik' / '±3 menit'."""
+    if detik < 90:
+        return f"±{max(detik, 5)} detik"
+    return f"±{round(detik / 60)} menit"
+
+
+class AntrePenuh(Exception):
+    """Antrian melebihi MAX_ANTRE — permintaan ditolak halus."""
+
+    def __init__(self, posisi: int):
+        self.posisi = posisi
+
+
 async def jalankan(kirim, on_update=None) -> dict:
     """`kirim` = fungsi sync yang POST job (json/file) dan balas dict awal.
-    Lalu poll /jobs sampai selesai, sambil melapor posisi antrian."""
+
+    Setelah enqueue, poll /jobs sampai selesai sambil melapor posisi antrian
+    dan estimasi tunggu. Kalau antrian sudah lebih panjang dari MAX_ANTRE, job
+    dibatalkan dan AntrePenuh dilempar supaya pemanggil bisa memberi tahu user
+    tanpa membuang kuota."""
     job = await asyncio.to_thread(kirim)
     if job.get("state") == "done":
         return job
     jid = job.get("job_id")
     if not jid:
         return job
+
+    posisi = job.get("queue_position")
+    if job.get("state") == "queued" and posisi and posisi > MAX_ANTRE:
+        await asyncio.to_thread(_cancel_job, jid)
+        raise AntrePenuh(posisi)
+
     if on_update:
-        await on_update(job.get("state"), job.get("queue_position"))
+        await on_update(job.get("state"), posisi)
     loop = asyncio.get_event_loop()
     deadline = loop.time() + POLL_DEADLINE
     last = job
@@ -158,7 +201,7 @@ async def jalankan(kirim, on_update=None) -> dict:
             return last
         if on_update:
             await on_update(last.get("state"), last.get("queue_position"))
-    return last
+    return last     # habis deadline tapi belum selesai -> ditangani pemanggil
 
 
 # ------------------------------------------------------------ format hasil
@@ -186,6 +229,12 @@ def _label(k: str) -> str:
 
 
 def format_hasil(hasil: dict, judul: str) -> str:
+    # Deadline poll habis tapi job belum selesai: hasilnya tetap diproses di
+    # server dan tersimpan di cache, jadi user cukup mengulang sebentar lagi.
+    if hasil.get("state") not in ("done", None) and not hasil.get("status"):
+        return (f"⏳ **{judul}** masih diproses server.\n\n"
+                "Antrian sedang panjang. Hasilnya akan tersimpan otomatis — "
+                "coba lagi beberapa menit lagi lewat menu, hasilnya muncul instan.")
     status = hasil.get("status")
     if status == "found":
         f = hasil.get("fields")
@@ -314,12 +363,16 @@ async def main() -> None:
         emoji, judul, _c, _f = INFO[key]
         cmd = "/" + key
         busy.add(uid)
-        tunggu = await ev.respond(f"🔍 Mencari {judul} ...")
+        tunggu = await ev.respond(f"🔍 Menyiapkan pencarian **{judul}** ...")
         last = {"v": ""}
 
         async def progres(state, posisi):
-            t = (f"⏳ Antre posisi {posisi} ..." if state == "queued" and posisi
-                 else "🔄 Sedang diproses ...")
+            if state == "queued" and posisi:
+                bar = "▰" * min(posisi, 10) + "▱" * max(0, 10 - posisi)
+                t = (f"⏳ **Antre** — posisi {posisi}\n`{bar}`\n"
+                     f"Perkiraan tunggu: {_eta(posisi * PERKIRAAN_PER_JOB)}")
+            else:
+                t = f"🔄 **Memproses {judul}** ...\nSedang mengambil data, mohon tunggu."
             if t != last["v"]:
                 last["v"] = t
                 try:
@@ -329,6 +382,15 @@ async def main() -> None:
 
         try:
             hasil = await jalankan(kirim, on_update=progres)
+        except AntrePenuh as e:
+            await tunggu.edit(
+                f"🚦 **Antrian sedang penuh** (posisi {e.posisi}).\n\n"
+                f"Perkiraan tunggu {_eta(e.posisi * PERKIRAAN_PER_JOB)} — terlalu lama. "
+                "Silakan coba lagi beberapa menit lagi lewat menu.",
+                buttons=kb_kembali())
+            busy.discard(uid)
+            await audit(conn, uid, *(await identitas(ev)), cmd, value_desc, "antre_penuh")
+            return
         except (urllib.error.URLError, TimeoutError) as e:
             await tunggu.edit(f"⚠️ Gagal menghubungi server: `{e}`", buttons=kb_kembali())
             busy.discard(uid)

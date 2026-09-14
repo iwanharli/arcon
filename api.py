@@ -462,6 +462,13 @@ async def get_search(job_id: str,
         await asyncio.sleep(1)
 
 
+@app.delete("/jobs/{job_id}", dependencies=[Depends(auth)])
+async def cancel_search(job_id: str):
+    """Batalkan job yang masih mengantre. Yang sudah jalan tidak bisa dibatalkan."""
+    ok = await jobs.cancel(state["conn"], job_id)
+    return {"ok": ok}
+
+
 @app.get("/queue", dependencies=[Depends(auth)])
 async def queue_list(limit: int = Query(20, ge=1, le=200)):
     """Isi antrian saat ini + job yang sedang diproses."""
