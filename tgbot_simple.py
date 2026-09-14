@@ -17,7 +17,9 @@ import asyncio
 import json
 import logging
 import os
+import re
 import urllib.error
+import urllib.parse
 import urllib.request
 import uuid
 
@@ -46,9 +48,53 @@ KATALOG = [
 ]
 INFO = {k: (emoji, judul, contoh, foto) for k, emoji, judul, contoh, foto in KATALOG}
 
+# Batas pencarian per user per hari (0 = tanpa batas). Melindungi kuota harian
+# bot sumber supaya tidak dihabiskan satu user. Admin dikecualikan.
+LIMIT_HARIAN = int(os.getenv("LIMIT_HARIAN_USER", "40"))
+
 # state per user
-pending: dict[int, str] = {}   # user_id -> key fitur yang menunggu input
+pending: dict[int, str] = {}          # user_id -> key fitur yang menunggu input
 busy: set[int] = set()
+tebak: dict[int, str] = {}            # user_id -> nilai diketik langsung, tunggu pilih fitur
+batal_ev: dict[int, asyncio.Event] = {}   # user_id -> sinyal Batal saat menunggu
+
+# Validasi input sebelum menembak bot (hemat kuota kalau salah ketik).
+HP_RE = re.compile(r"^(?:\+?62|0)8\d{7,12}$")
+D16_RE = re.compile(r"^\d{16}$")
+# Ambil LAT/LON dari teks "LAT: -6.37 LON: 106.89" untuk bikin link Google Maps.
+KOORD_RE = re.compile(r"LAT[:\s]*(-?\d+\.\d+).*?LON[:\s]*(-?\d+\.\d+)", re.I)
+
+
+def _bersih_hp(v: str) -> str:
+    return re.sub(r"[\s.\-()]", "", v)
+
+
+def validasi(key: str, value: str) -> str | None:
+    """Kembalikan pesan error kalau format salah, atau None kalau valid."""
+    v = value.strip()
+    if key in ("nikbyphone", "track"):
+        if not HP_RE.match(_bersih_hp(v)):
+            return ("❌ Nomor HP tidak valid.\nContoh benar: `081234567890` atau "
+                    "`6281234567890`.")
+    elif key in ("nik", "kk"):
+        if not D16_RE.match(v):
+            label = "NIK" if key == "nik" else "No. KK"
+            return f"❌ {label} harus tepat **16 digit angka**."
+    return None
+
+
+def maps_link(rec: dict) -> str | None:
+    """Link Google Maps dari record /track: pakai yang sudah ada, atau bangun
+    dari koordinat LAT/LON."""
+    for v in rec.values():
+        if isinstance(v, str) and ("maps.google" in v or "google.com/maps" in v):
+            return v.split()[0]
+    for v in rec.values():
+        if isinstance(v, str):
+            m = KOORD_RE.search(v)
+            if m:
+                return f"https://maps.google.com/?q={m.group(1)},{m.group(2)}"
+    return None
 
 # Job yang menembak Telegram bisa lama: rata-rata terukur ~52 detik, maksimum
 # ~460 detik (FR + telusuri kandidat). Deadline poll dibuat 600 detik supaya
@@ -95,6 +141,49 @@ async def audit(conn, tid, uname, name, cmd, value, status) -> None:
         await cur.execute(
             "INSERT INTO bot_audit (telegram_id,username,name,bot,cmd,value,status) "
             "VALUES (%s,%s,%s,%s,%s,%s,%s)", (tid, uname, name, BOT, cmd, value, status))
+
+
+# Status audit yang TIDAK dihitung sebagai pemakaian kuota (tidak menembak bot).
+_TAK_HITUNG = ("ditolak_format", "antre_penuh", "limit_user", "akses_ditolak", "batal")
+
+
+async def pakai_hari_ini(conn, tid: int) -> int:
+    async with conn.cursor() as cur:
+        await cur.execute(
+            "SELECT count(*) AS n FROM bot_audit WHERE telegram_id=%s "
+            "AND created_at::date = current_date AND status <> ALL(%s)",
+            (tid, list(_TAK_HITUNG)))
+        return (await cur.fetchone())["n"]
+
+
+async def list_users(conn) -> list[dict]:
+    async with conn.cursor() as cur:
+        await cur.execute(
+            "SELECT telegram_id, role, name, last_seen_at FROM bot_users "
+            "ORDER BY role, telegram_id")
+        return await cur.fetchall()
+
+
+async def del_user(conn, tid: int) -> bool:
+    """Hapus user dari allowlist. Admin tidak bisa dihapus lewat sini."""
+    async with conn.cursor() as cur:
+        await cur.execute(
+            "DELETE FROM bot_users WHERE telegram_id=%s AND role<>'admin' "
+            "RETURNING telegram_id", (tid,))
+        return await cur.fetchone() is not None
+
+
+async def statistik(conn) -> dict:
+    async with conn.cursor() as cur:
+        await cur.execute("SELECT state, count(*) n FROM search_jobs GROUP BY state")
+        antre = {r["state"]: r["n"] for r in await cur.fetchall()}
+        await cur.execute(
+            "SELECT count(*) n, count(*) FILTER (WHERE status='found') ok "
+            "FROM bot_audit WHERE created_at::date=current_date")
+        hari = await cur.fetchone()
+        await cur.execute("SELECT count(*) n FROM bot_users")
+        users = (await cur.fetchone())["n"]
+    return {"antre": antre, "hari": hari, "users": users}
 
 
 # --------------------------------------------------------------- panggil API
@@ -171,19 +260,22 @@ class AntrePenuh(Exception):
         self.posisi = posisi
 
 
-async def jalankan(kirim, on_update=None) -> dict:
+async def jalankan(kirim, on_update=None, stop_event=None, on_job=None) -> dict:
     """`kirim` = fungsi sync yang POST job (json/file) dan balas dict awal.
 
     Setelah enqueue, poll /jobs sampai selesai sambil melapor posisi antrian
     dan estimasi tunggu. Kalau antrian sudah lebih panjang dari MAX_ANTRE, job
     dibatalkan dan AntrePenuh dilempar supaya pemanggil bisa memberi tahu user
-    tanpa membuang kuota."""
+    tanpa membuang kuota. `stop_event` yang di-set membatalkan job (tombol
+    Batal); `on_job(jid)` dipanggil begitu job_id diketahui."""
     job = await asyncio.to_thread(kirim)
     if job.get("state") == "done":
         return job
     jid = job.get("job_id")
     if not jid:
         return job
+    if on_job:
+        on_job(jid)
 
     posisi = job.get("queue_position")
     if job.get("state") == "queued" and posisi and posisi > MAX_ANTRE:
@@ -196,6 +288,9 @@ async def jalankan(kirim, on_update=None) -> dict:
     deadline = loop.time() + POLL_DEADLINE
     last = job
     while loop.time() < deadline:
+        if stop_event and stop_event.is_set():
+            await asyncio.to_thread(_cancel_job, jid)
+            return {"state": "cancelled"}
         last = await asyncio.to_thread(_get_job, jid, 8)
         if last.get("state") in ("done", "failed"):
             return last
@@ -228,7 +323,12 @@ def _label(k: str) -> str:
     return k.replace("_", " ").title()
 
 
+_LIMIT_KATA = ("batas penggunaan", "limit tercapai", "kuota", "quota", "coba lagi besok")
+
+
 def format_hasil(hasil: dict, judul: str) -> str:
+    if hasil.get("state") == "cancelled":
+        return f"🛑 Pencarian **{judul}** dibatalkan."
     # Deadline poll habis tapi job belum selesai: hasilnya tetap diproses di
     # server dan tersimpan di cache, jadi user cukup mengulang sebentar lagi.
     if hasil.get("state") not in ("done", None) and not hasil.get("status"):
@@ -236,6 +336,13 @@ def format_hasil(hasil: dict, judul: str) -> str:
                 "Antrian sedang panjang. Hasilnya akan tersimpan otomatis — "
                 "coba lagi beberapa menit lagi lewat menu, hasilnya muncul instan.")
     status = hasil.get("status")
+    # Kuota harian fitur di bot sumber habis — bukan "data tidak ada".
+    if status == "queue_without_data":
+        msg = (hasil.get("msg") or "").lower()
+        if any(k in msg for k in _LIMIT_KATA):
+            return (f"🔴 **Kuota harian fitur {judul} habis.**\n"
+                    "Sudah mencapai batas pemakaian hari ini di sumber data. "
+                    "Silakan coba lagi besok.")
     if status == "found":
         f = hasil.get("fields")
         if isinstance(f, list):
@@ -270,6 +377,18 @@ def kb_menu():
 
 def kb_kembali():
     return [[Button.inline("🏠 Menu", data="home")]]
+
+
+def kb_batal():
+    return [[Button.inline("🛑 Batal", data="batal")]]
+
+
+def kb_hasil(maps_url: str | None = None):
+    rows = []
+    if maps_url:
+        rows.append([Button.url("📍 Buka Google Maps", maps_url)])
+    rows.append([Button.inline("🏠 Menu", data="home")])
+    return rows
 
 
 WELCOME = "Pilih data yang ingin dicari:"
@@ -313,14 +432,68 @@ async def main() -> None:
                                       getattr(s, "last_name", None)])) or None
         return uname, nama
 
+    async def minta_akses(ev):
+        """Teruskan permintaan akses ke semua admin dengan tombol Izinkan."""
+        uid = ev.sender_id
+        uname, nama = await identitas(ev)
+        siapa = f"@{uname}" if uname else (nama or "-")
+        await audit(conn, uid, uname, nama, "/start", "", "akses_ditolak")
+        for aid in ADMIN_IDS:
+            try:
+                await client.send_message(
+                    aid, f"🔔 **Permintaan akses baru**\nNama: {nama or '-'}\n"
+                    f"Username: {siapa}\nID: `{uid}`",
+                    buttons=[[Button.inline("✅ Izinkan", data=f"izinkan:{uid}")]])
+            except Exception:  # noqa: BLE001
+                pass
+
     @client.on(events.NewMessage(pattern=r"^/(start|menu|help)$"))
     async def _start(ev):
         if not await boleh(ev.sender_id):
             await ev.respond(f"🔒 Akses ditolak.\nID Telegram Anda: `{ev.sender_id}`\n"
-                             "Kirim ID ini ke admin untuk didaftarkan.")
+                             "Permintaan Anda sudah diteruskan ke admin. Mohon tunggu.")
+            await minta_akses(ev)
             return
         pending.pop(ev.sender_id, None)
         await ev.respond(WELCOME, buttons=kb_menu())
+
+    @client.on(events.NewMessage(pattern=r"^/users$"))
+    async def _users(ev):
+        u = await boleh(ev.sender_id)
+        if not u or u["role"] != "admin":
+            return
+        rows = await list_users(conn)
+        baris = []
+        for r in rows:
+            tag = "👑" if r["role"] == "admin" else "•"
+            seen = r["last_seen_at"].strftime("%d/%m %H:%M") if r["last_seen_at"] else "-"
+            baris.append(f"{tag} `{r['telegram_id']}` — {r['name'] or '-'} (aktif: {seen})")
+        await ev.respond(f"👥 **{len(rows)} user terdaftar**\n\n" + "\n".join(baris) +
+                         "\n\nHapus: `/deny <id>`  •  Tambah: `/allow <id>`")
+
+    @client.on(events.NewMessage(pattern=r"^/deny (\d+)$"))
+    async def _deny(ev):
+        u = await boleh(ev.sender_id)
+        if not u or u["role"] != "admin":
+            return
+        target = int(ev.pattern_match.group(1))
+        ok = await del_user(conn, target)
+        await ev.respond(f"🗑️ User `{target}` dihapus." if ok
+                         else f"⚠️ `{target}` tidak ada / admin (tak bisa dihapus).")
+
+    @client.on(events.NewMessage(pattern=r"^/stats$"))
+    async def _stats(ev):
+        u = await boleh(ev.sender_id)
+        if not u or u["role"] != "admin":
+            return
+        s = await statistik(conn)
+        a = s["antre"]
+        await ev.respond(
+            "📊 **Statistik**\n"
+            f"• Antrian: {a.get('queued', 0)} antre, {a.get('running', 0)} jalan\n"
+            f"• Hari ini: {s['hari']['n']} pencarian ({s['hari']['ok']} ketemu)\n"
+            f"• Total user: {s['users']}\n"
+            f"• Batas harian/user: {LIMIT_HARIAN or 'tanpa batas'}")
 
     @client.on(events.NewMessage(pattern=r"^/whoami$"))
     async def _whoami(ev):
@@ -343,7 +516,52 @@ async def main() -> None:
         data = ev.data.decode()
         if data == "home":
             pending.pop(uid, None)
+            tebak.pop(uid, None)
             await ev.edit(WELCOME, buttons=kb_menu())
+            return
+        if data == "batal":
+            evt = batal_ev.get(uid)
+            if evt:
+                evt.set()
+                await ev.answer("Membatalkan ...")
+            else:
+                await ev.answer("Tidak ada pencarian berjalan.")
+            return
+        # Admin menekan "Izinkan" dari notifikasi permintaan akses.
+        if data.startswith("izinkan:"):
+            u = await get_user(conn, uid)
+            if not u or u["role"] != "admin":
+                await ev.answer("Hanya admin.", alert=True)
+                return
+            target = int(data.split(":", 1)[1])
+            await add_user(conn, target, uid)
+            await ev.edit(f"✅ User `{target}` diizinkan.")
+            try:
+                await client.send_message(target, "✅ Akses Anda disetujui admin. "
+                                          "Ketik /start untuk mulai.")
+            except Exception:  # noqa: BLE001
+                pass
+            return
+        # Pilih fitur untuk nilai yang sudah diketik langsung (deteksi otomatis).
+        if data.startswith("go:"):
+            key = data[3:]
+            nilai = tebak.get(uid)
+            if key not in INFO or not nilai:
+                await ev.answer("Ketik ulang nilainya ya.")
+                return
+            if uid in busy:
+                await ev.answer("⏳ Tunggu pencarian sebelumnya selesai.", alert=True)
+                return
+            tolak = await cek_kuota(uid)
+            if tolak:
+                await ev.edit(tolak, buttons=kb_kembali())
+                return
+            tebak.pop(uid, None)
+            pending.pop(uid, None)
+            uname = (await identitas(ev))[0]
+            siapa = f"tgbot:@{uname}" if uname else f"tgbot:{uid}"
+            await ev.delete()
+            await proses(ev, key, nilai, lambda: _post_json("/" + key, nilai, siapa))
             return
         if data.startswith("f:"):
             if uid in busy:
@@ -360,12 +578,28 @@ async def main() -> None:
             else:
                 await ev.edit(f"{emoji} **{judul}**\n\nKirim {contoh}.", buttons=kb_kembali())
 
+    async def cek_kuota(uid) -> str | None:
+        """None kalau boleh; pesan penolakan kalau kuota harian habis."""
+        if LIMIT_HARIAN <= 0 or uid in ADMIN_IDS:
+            return None
+        u = await get_user(conn, uid)
+        if u and u["role"] == "admin":
+            return None
+        n = await pakai_hari_ini(conn, uid)
+        if n >= LIMIT_HARIAN:
+            return (f"🔴 **Batas harian tercapai** ({LIMIT_HARIAN} pencarian/hari).\n"
+                    "Jatah Anda akan kembali besok. Terima kasih.")
+        return None
+
     async def proses(ev, key, value_desc, kirim):
         uid = ev.sender_id
         emoji, judul, _c, _f = INFO[key]
         cmd = "/" + key
         busy.add(uid)
-        tunggu = await ev.respond(f"🔍 Menyiapkan pencarian **{judul}** ...")
+        ev_batal = asyncio.Event()
+        batal_ev[uid] = ev_batal
+        tunggu = await ev.respond(f"🔍 Menyiapkan pencarian **{judul}** ...",
+                                  buttons=kb_batal())
         last = {"v": ""}
 
         async def progres(state, posisi):
@@ -378,32 +612,61 @@ async def main() -> None:
             if t != last["v"]:
                 last["v"] = t
                 try:
-                    await tunggu.edit(t)
+                    await tunggu.edit(t, buttons=kb_batal())
                 except Exception:  # noqa: BLE001
                     pass
 
+        uname, nama = await identitas(ev)
         try:
-            hasil = await jalankan(kirim, on_update=progres)
+            hasil = await jalankan(kirim, on_update=progres, stop_event=ev_batal,
+                                   on_job=lambda jid: None)
         except AntrePenuh as e:
             await tunggu.edit(
                 f"🚦 **Antrian sedang penuh** (posisi {e.posisi}).\n\n"
                 f"Perkiraan tunggu {_eta(e.posisi * PERKIRAAN_PER_JOB)} — terlalu lama. "
                 "Silakan coba lagi beberapa menit lagi lewat menu.",
                 buttons=kb_kembali())
-            busy.discard(uid)
-            await audit(conn, uid, *(await identitas(ev)), cmd, value_desc, "antre_penuh")
+            await audit(conn, uid, uname, nama, cmd, value_desc, "antre_penuh")
             return
         except (urllib.error.URLError, TimeoutError) as e:
             await tunggu.edit(f"⚠️ Gagal menghubungi server: `{e}`", buttons=kb_kembali())
-            busy.discard(uid)
             return
-        busy.discard(uid)
+        finally:
+            busy.discard(uid)
+            batal_ev.pop(uid, None)
 
-        uname, nama = await identitas(ev)
+        if hasil.get("state") == "cancelled":
+            await audit(conn, uid, uname, nama, cmd, value_desc, "batal")
+            await tunggu.edit(format_hasil(hasil, judul), buttons=kb_kembali())
+            return
+
         await audit(conn, uid, uname, nama, cmd, value_desc, hasil.get("status", "?"))
+
+        # Link Google Maps (khusus /track): pakai yang ada / bangun dari koordinat.
+        murl_maps = None
+        if key == "track":
+            f = hasil.get("fields")
+            recs = f if isinstance(f, list) else ([f] if isinstance(f, dict) else [])
+            for r in recs:
+                murl_maps = murl_maps or maps_link(r)
+
+        teks = format_hasil(hasil, judul)
         media = hasil.get("media") or []
-        await tunggu.edit(format_hasil(hasil, judul),
-                          buttons=None if media else kb_kembali(), link_preview=False)
+        tombol = kb_hasil(murl_maps) if not media else None
+
+        # Hasil sangat panjang (KK banyak anggota) melebihi batas 1 pesan
+        # Telegram: kirim sebagai file .txt biar tidak terpotong.
+        if len(teks) > 3800:
+            import io
+            f = io.BytesIO(teks.encode())
+            f.name = f"{key}_{value_desc}.txt".replace("/", "_")
+            await tunggu.edit(f"✅ Hasil **{judul}** cukup panjang — dikirim sebagai file 👇",
+                              buttons=None)
+            await client.send_file(uid, f, buttons=tombol or kb_kembali(),
+                                   force_document=True)
+        else:
+            await tunggu.edit(teks, buttons=tombol, link_preview=False)
+
         for i, murl in enumerate(media[:10]):
             try:
                 blob = await asyncio.to_thread(_fetch_media, murl)
@@ -416,7 +679,8 @@ async def main() -> None:
     # Command tak dikenal (/foo) tidak boleh senyap — dulu /help diabaikan
     # tanpa balasan sehingga terlihat seperti "bot mati". Command yang sah
     # sudah ditangani handler di atas; sisa "/..." dijawab dengan petunjuk.
-    @client.on(events.NewMessage(pattern=r"^/(?!start$|menu$|help$|whoami$|allow\s)\S+"))
+    @client.on(events.NewMessage(
+        pattern=r"^/(?!start$|menu$|help$|whoami$|allow\s|users$|deny\s|stats$)\S+"))
     async def _cmd_asing(ev):
         if not await boleh(ev.sender_id):
             return
@@ -432,9 +696,29 @@ async def main() -> None:
             return
         key = pending.get(uid)
         if not key:
+            # Tidak sedang memilih fitur: coba deteksi nilai yang diketik langsung.
             if ev.photo:
                 return
-            await ev.respond("Ketik /start untuk membuka menu 📲")
+            teks = ev.raw_text.strip()
+            hp = _bersih_hp(teks)
+            if HP_RE.match(hp):
+                tebak[uid] = teks
+                await ev.respond(
+                    f"📲 Nomor HP `{teks}` terdeteksi. Mau cari apa?",
+                    buttons=[[Button.inline("📱 NIK dari Nomor HP", data="go:nikbyphone")],
+                             [Button.inline("🛰️ Lacak Nomor HP", data="go:track")],
+                             [Button.inline("🏠 Menu", data="home")]])
+                return
+            if D16_RE.match(teks):
+                tebak[uid] = teks
+                await ev.respond(
+                    f"🔢 16 digit `{teks}` terdeteksi. Ini NIK atau No. KK?",
+                    buttons=[[Button.inline("🆔 Data NIK", data="go:nik")],
+                             [Button.inline("👨‍👩‍👧 Kartu Keluarga", data="go:kk")],
+                             [Button.inline("🏠 Menu", data="home")]])
+                return
+            await ev.respond("Ketik /menu untuk membuka daftar fitur 📲",
+                             buttons=kb_menu())
             return
         if uid in busy:
             await ev.respond("⏳ Masih memproses pencarian sebelumnya.")
@@ -448,6 +732,11 @@ async def main() -> None:
             if not ev.photo:
                 await ev.respond("📷 Kirim **foto wajah**, bukan teks.")
                 return
+            tolak = await cek_kuota(uid)
+            if tolak:
+                pending.pop(uid, None)
+                await ev.respond(tolak, buttons=kb_kembali())
+                return
             pending.pop(uid, None)
             blob = await ev.download_media(file=bytes)
             await proses(ev, key, "foto", lambda: _post_file(cmd, blob, siapa))
@@ -456,6 +745,16 @@ async def main() -> None:
                 await ev.respond("Fitur ini butuh teks, bukan foto.")
                 return
             value = ev.raw_text.strip()
+            salah = validasi(key, value)
+            if salah:
+                await ev.respond(salah)      # tetap menunggu input yang benar
+                await audit(conn, uid, uname, nama, cmd, value, "ditolak_format")
+                return
+            tolak = await cek_kuota(uid)
+            if tolak:
+                pending.pop(uid, None)
+                await ev.respond(tolak, buttons=kb_kembali())
+                return
             pending.pop(uid, None)
             await proses(ev, key, value, lambda: _post_json(cmd, value, siapa))
 
