@@ -32,7 +32,37 @@ ACK_MARKERS = (
     "mencari data", "sedang mencari", "sedang memuat", "memuat ",
     "memproses", "sedang diproses",
     "⏳", "sedang menganalisis", "harap tunggu",
+    "permintaan berhasil diterima", "proses sedang berlangsung",
 )
+
+# Branding/footer bot yang bukan data: hak cipta, "Verified Source", tautan
+# kanal, dsb. Baris-baris ini dibuang saat parsing supaya tidak ikut jadi
+# catatan (msg) maupun field.
+NOISE_MARKERS = (
+    "all rights reserved", "verified source", "official source",
+    "t.me/teamkhususantibanditbot", "hak cipta", "@teamkhususantibanditbot",
+)
+
+
+def _is_noise_line(line: str | None) -> bool:
+    t = (line or "").lower()
+    return any(m in t for m in NOISE_MARKERS)
+
+
+def is_noise_only(text: str | None) -> bool:
+    """True kalau seluruh isi pesan cuma branding/footer/ack, tanpa data."""
+    if not text:
+        return False
+    for line in text.splitlines():
+        s = bersihkan_baris(line)
+        if not s:
+            continue
+        if _is_noise_line(line) or is_ack(s):
+            continue
+        if any(m in line for m in DISCLAIMER_MARKERS):
+            continue
+        return False
+    return True
 
 # Kuota/limit habis — BUKAN "data tidak ada". Balasannya harus dianggap
 # sementara supaya bisa dicoba lagi besok, bukan dicatat not_found yang
@@ -199,6 +229,8 @@ def parse_reply(text: str | None) -> tuple[list[dict], str | None]:
 
     lines, disclaimer = [], None
     for line in text.split("\n"):
+        if _is_noise_line(line):
+            continue                       # branding/footer -> buang total
         if any(m in line for m in DISCLAIMER_MARKERS):
             disclaimer = line.strip()
             continue
@@ -308,7 +340,7 @@ def classify(replies: list[str]) -> dict:
     if not texts:
         return {"status": "no_response", "msg": None, "fields": None}
 
-    non_ack = [t for t in texts if not is_ack(t)]
+    non_ack = [t for t in texts if not is_ack(t) and not is_noise_only(t)]
     if not non_ack:
         return {"status": "queue_without_data", "msg": texts[-1], "fields": None}
 
