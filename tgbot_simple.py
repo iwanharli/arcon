@@ -294,6 +294,8 @@ async def main() -> None:
         await client(SetBotCommandsRequest(
             scope=BotCommandScopeDefault(), lang_code="id",
             commands=[BotCommand("start", "Buka menu"),
+                      BotCommand("menu", "Buka menu"),
+                      BotCommand("help", "Bantuan & daftar fitur"),
                       BotCommand("whoami", "Lihat ID Telegram saya")]))
     except Exception as e:  # noqa: BLE001
         log.warning("gagal set commands: %s", e)
@@ -311,7 +313,7 @@ async def main() -> None:
                                       getattr(s, "last_name", None)])) or None
         return uname, nama
 
-    @client.on(events.NewMessage(pattern=r"^/start$"))
+    @client.on(events.NewMessage(pattern=r"^/(start|menu|help)$"))
     async def _start(ev):
         if not await boleh(ev.sender_id):
             await ev.respond(f"🔒 Akses ditolak.\nID Telegram Anda: `{ev.sender_id}`\n"
@@ -410,6 +412,16 @@ async def main() -> None:
                                            buttons=kb_kembali() if i == len(media[:10]) - 1 else None)
             except Exception as e:  # noqa: BLE001
                 log.warning("gagal kirim media: %s", e)
+
+    # Command tak dikenal (/foo) tidak boleh senyap — dulu /help diabaikan
+    # tanpa balasan sehingga terlihat seperti "bot mati". Command yang sah
+    # sudah ditangani handler di atas; sisa "/..." dijawab dengan petunjuk.
+    @client.on(events.NewMessage(pattern=r"^/(?!start$|menu$|help$|whoami$|allow\s)\S+"))
+    async def _cmd_asing(ev):
+        if not await boleh(ev.sender_id):
+            return
+        await ev.respond("Perintah tidak dikenal. Ketik /menu untuk membuka "
+                         "daftar fitur 📲", buttons=kb_menu())
 
     @client.on(events.NewMessage)
     async def _msg(ev):
