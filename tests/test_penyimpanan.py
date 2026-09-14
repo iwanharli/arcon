@@ -309,7 +309,11 @@ def test_judul_kelompok_perbandingan_sumber():
         "STATUS KAWIN\n  DUKCAPIL_1: BELUM KAWIN\n  WNI: BELUM KAWIN"
     )
     rec, _ = P.parse_reply(teks)
-    judul = [r.get("nama") for r in rec]
+    # Judul seksi disimpan sebagai field "bagian", bukan "nama": ia label
+    # kelompok, bukan nama orang. Dengan begitu tidak muncul kartu yang seolah
+    # bernama "NOMOR KK", tapi konteks perbandingan sumber tetap terbaca.
+    judul = [r.get("bagian") for r in rec]
     assert "NOMOR KK" in judul and "STATUS KAWIN" in judul, judul
-    kk = next(r for r in rec if r.get("nama") == "NOMOR KK")
+    kk = next(r for r in rec if r.get("bagian") == "NOMOR KK")
     assert kk["dukcapil_1"] == "3275022406080115"
+    assert "nama" not in kk

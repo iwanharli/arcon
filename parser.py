@@ -243,6 +243,12 @@ def parse_reply(text: str | None) -> tuple[list[dict], str | None]:
 
     blocks: list[list[str]] = [[]]
     headers: list[str | None] = [None]
+    # Indeks blok yang headernya cuma JUDUL SEKSI (IDENTITAS, LAINNYA, AKTA,
+    # "NOMOR KK", dsb), bukan nama record. Judul begini disimpan sebagai field
+    # "bagian" — bukan "nama" — supaya tidak muncul kartu berlabel seolah nama
+    # orang, tapi konteks perbandingan sumber (dukcapil_1/wni di bawah "NOMOR
+    # KK") tetap terbaca.
+    bagian_idx: set[int] = set()
     # Nama field yang BERULANG menandai record baru, walau tidak ada pemisah.
     # Hasil FACE RECOGNITION berupa daftar kandidat polos:
     #     Match Confidence: 89.12%
@@ -304,6 +310,7 @@ def parse_reply(text: str | None) -> tuple[list[dict], str | None]:
                 headers.append(None)
                 kunci_blok = set()
             headers[-1] = strip_emoji(stripped) or None
+            bagian_idx.add(len(blocks) - 1)   # judul seksi -> field "bagian"
             continue
 
         blocks[-1].append(line)
@@ -314,8 +321,13 @@ def parse_reply(text: str | None) -> tuple[list[dict], str | None]:
         notes.extend(block_notes)
         if not fields or set(fields) <= SUMMARY_ONLY:
             continue
-        if headers[i]:
-            fields.setdefault("nama", headers[i])
+        label = headers[i]
+        # Label sampah ("-", "1.", angka polos, sisa tanda baca) tidak dipakai.
+        if label and re.sub(r"[\d.)\-–—•*\s]", "", label):
+            if i in bagian_idx:
+                fields.setdefault("bagian", label)
+            else:
+                fields.setdefault("nama", label)
         records.append(fields)
 
     note_text = "\n".join(n for n in notes if len(strip_emoji(n)) > 1) or None
