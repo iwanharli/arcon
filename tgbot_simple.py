@@ -27,6 +27,7 @@ from telethon import Button, TelegramClient, events
 
 import config
 import db
+import tgbot_reply_formatter
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("artemis.tgbot")
@@ -349,7 +350,7 @@ def potong_pesan(teks: str, maks: int = 4000) -> list[str]:
 _LIMIT_KATA = ("batas penggunaan", "limit tercapai", "kuota", "quota", "coba lagi besok")
 
 
-def format_hasil(hasil: dict, judul: str) -> str:
+def format_hasil(hasil: dict, judul: str, key: str | None = None) -> str:
     if hasil.get("state") == "cancelled":
         return f"🛑 Pencarian **{judul}** dibatalkan."
     # Deadline poll habis tapi job belum selesai: hasilnya tetap diproses di
@@ -369,12 +370,19 @@ def format_hasil(hasil: dict, judul: str) -> str:
     if status == "found":
         f = hasil.get("fields")
         if isinstance(f, list):
-            blok = [f"┌ **{i}**\n{_fmt_record(r)}" for i, r in enumerate(f, 1)
-                    if isinstance(r, dict)]
-            body = "\n\n".join(blok) or (hasil.get("msg") or "(kosong)")
-            head = f"✅ Ditemukan {len(blok)} data — {judul}"
+            if key == "nikbyphone":
+                return tgbot_reply_formatter.format_nikbyphone(f)
+            else:
+                blok = [f"┌ **{i}**\n{_fmt_record(r)}" for i, r in enumerate(f, 1)
+                        if isinstance(r, dict)]
+                body = "\n\n".join(blok) or (hasil.get("msg") or "(kosong)")
+                head = f"✅ Ditemukan {len(blok)} data — {judul}"
         elif isinstance(f, dict):
-            body, head = _fmt_record(f), f"✅ Ditemukan — {judul}"
+            if key == "nikbyphone":
+                return tgbot_reply_formatter.format_nikbyphone(f)
+            else:
+                body = _fmt_record(f)
+            head = f"✅ Ditemukan — {judul}"
         else:
             body, head = (hasil.get("msg") or "(kosong)"), f"✅ {judul}"
         return f"{head}\n\n{body}"
@@ -719,13 +727,18 @@ async def main() -> None:
             for r in recs:
                 murl_maps = murl_maps or maps_link(r)
 
-        teks = format_hasil(hasil, judul)
+        if key == "nikbyphone" and hasil.get("status") == "found":
+            bagian = tgbot_reply_formatter.format_nikbyphone_messages(hasil.get("fields"))
+            if not bagian:
+                bagian = [format_hasil(hasil, judul, key)]
+        else:
+            teks = format_hasil(hasil, judul, key)
+            bagian = potong_pesan(teks)
         media = hasil.get("media") or []
         tombol = kb_hasil(murl_maps) if not media else None
 
         # Hasil panjang (KK banyak anggota) melebihi batas 1 pesan Telegram:
         # dipecah jadi beberapa pesan teks, tombol menempel di pesan terakhir.
-        bagian = potong_pesan(teks)
         await tunggu.edit(bagian[0],
                           buttons=tombol if len(bagian) == 1 else None,
                           link_preview=False)
