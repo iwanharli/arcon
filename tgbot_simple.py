@@ -374,6 +374,10 @@ def format_hasil(hasil: dict, judul: str, key: str | None = None) -> str:
                 return tgbot_reply_formatter.format_nikbyphone(f)
             if key == "nik":
                 return tgbot_reply_formatter.format_nik(f)
+            if key == "kk":
+                return tgbot_reply_formatter.format_kk(f)
+            if key == "track":
+                return tgbot_reply_formatter.format_track(f)
             else:
                 blok = [f"┌ **{i}**\n{_fmt_record(r)}" for i, r in enumerate(f, 1)
                         if isinstance(r, dict)]
@@ -384,6 +388,10 @@ def format_hasil(hasil: dict, judul: str, key: str | None = None) -> str:
                 return tgbot_reply_formatter.format_nikbyphone(f)
             if key == "nik":
                 return tgbot_reply_formatter.format_nik(f)
+            if key == "kk":
+                return tgbot_reply_formatter.format_kk(f)
+            if key == "track":
+                return tgbot_reply_formatter.format_track(f)
             else:
                 body = _fmt_record(f)
             head = f"✅ Ditemukan — {judul}"
@@ -733,12 +741,22 @@ async def main() -> None:
 
         nikbyphone_found = key == "nikbyphone" and hasil.get("status") == "found"
         nik_found = key == "nik" and hasil.get("status") == "found"
+        kk_found = key == "kk" and hasil.get("status") == "found"
+        track_found = key == "track" and hasil.get("status") == "found"
         if nikbyphone_found:
             bagian = tgbot_reply_formatter.format_nikbyphone_messages(hasil.get("fields"))
             if not bagian:
                 bagian = potong_pesan(format_hasil(hasil, judul))
         elif nik_found:
             bagian = tgbot_reply_formatter.format_nik_messages(hasil.get("fields"))
+            if not bagian:
+                bagian = potong_pesan(format_hasil(hasil, judul))
+        elif kk_found:
+            bagian = tgbot_reply_formatter.format_kk_messages(hasil.get("fields"))
+            if not bagian:
+                bagian = potong_pesan(format_hasil(hasil, judul))
+        elif track_found:
+            bagian = tgbot_reply_formatter.format_track_messages(hasil.get("fields"))
             if not bagian:
                 bagian = potong_pesan(format_hasil(hasil, judul))
         else:

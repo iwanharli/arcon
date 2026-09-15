@@ -1,9 +1,10 @@
-"""Formatter balasan Telegram untuk command ``/nikbyphone`` dan ``/nik``."""
+"""Formatter balasan Telegram untuk command ``/nikbyphone``, ``/nik``, ``/kk``, dan ``/track``."""
 from __future__ import annotations
 
 import json
 import re
 from collections.abc import Mapping
+from datetime import datetime, timedelta, timezone
 from typing import Any, Callable
 
 
@@ -1146,6 +1147,517 @@ def _render_nik_sections(fields: Any) -> list[str]:
     return sections
 
 
+def _kk_codes(value: Any) -> list[str]:
+    pairs = re.findall(r"(PROV|KAB|KEC|KEL)\s*:\s*([^\s]+)", _text(value), re.I)
+    values = {key.upper(): item for key, item in pairs}
+    labels = {
+        "PROV": "Provinsi",
+        "KAB": "Kabupaten/Kota",
+        "KEC": "Kecamatan",
+        "KEL": "Desa/Kelurahan",
+    }
+    return [_plain_line(labels[key], values[key], code=True)
+            for key in ("PROV", "KAB", "KEC", "KEL") if key in values]
+
+
+def _kk_profile(records: list[dict[str, Any]]) -> dict[str, Any]:
+    profile_keys = {
+        "nama_lengkap", "nik", "nomor_kk", "jenis_kelamin", "tempat_lahir",
+        "tanggal_lahir", "status_kawin", "status_hubungan", "alamat",
+        "nomor_wilayah", "google_maps", "kelurahan", "kecamatan", "kabupaten",
+        "provinsi",
+    }
+    candidates = [
+        record for record in records
+        if _record_group(record) not in {"DATA AYAH", "DATA IBU", "LAINNYA", "AKTA"}
+        and any(_available(record.get(key)) for key in profile_keys)
+    ]
+    if not candidates:
+        return {}
+
+    def score(record: Mapping[str, Any]) -> int:
+        return (
+            20 * int(_available(record.get("nama_lengkap")))
+            + 10 * int(_is_nik_identity(record))
+            + 4 * int(_available(record.get("nomor_kk")))
+            + sum(int(_available(record.get(key))) for key in profile_keys)
+        )
+
+    selected = max(candidates, key=score)
+    profile = dict(selected)
+    selected_nik = _text(profile["nik"]) if _available(profile.get("nik")) else ""
+    for record in candidates:
+        record_nik = _text(record["nik"]) if _available(record.get("nik")) else ""
+        if selected_nik and record_nik and record_nik != selected_nik:
+            continue
+        for key, value in record.items():
+            current = profile.get(key)
+            if (_available(value)
+                    and (not _available(current) or _text(current).upper() in {"N/A", "-"})):
+                profile[key] = value
+    name = _nik_identity_name(profile)
+    if _available(name) and not _available(profile.get("nama_lengkap")):
+        profile["nama_lengkap"] = name
+    return profile
+
+
+def _kk_parent(records: list[dict[str, Any]], group: str) -> dict[str, Any]:
+    explicit = next((record for record in records if _record_group(record) == group), None)
+    if explicit:
+        return explicit
+    candidates = [record for record in records
+                  if set(record).issubset({"nama", "nik"}) and _available(record.get("nama"))]
+    index = 0 if group == "DATA AYAH" else 1
+    return candidates[index] if index < len(candidates) else {}
+
+
+def _render_kk_information(records: list[dict[str, Any]]) -> str:
+    profile = _kk_profile(records)
+    identity_main = []
+    for label, key, code, bold in (
+        ("Nama Lengkap", "nama_lengkap", False, True), ("NIK", "nik", True, False),
+        ("No. KK", "nomor_kk", True, False), ("Jenis Kelamin", "jenis_kelamin", False, False),
+    ):
+        if _available(profile.get(key)):
+            identity_main.append(_plain_line(label, profile[key], code=code, bold=bold))
+    identity_detail = []
+    for label, key in (("Tempat Lahir", "tempat_lahir"), ("Tanggal Lahir", "tanggal_lahir"),
+                       ("Status Kawin", "status_kawin"), ("Status Hubungan", "status_hubungan")):
+        if _available(profile.get(key)):
+            value = _display_date(profile[key]) if key == "tanggal_lahir" else profile[key]
+            identity_detail.append(_plain_line(label, value))
+    identity = identity_main + ([""] if identity_main and identity_detail else []) + identity_detail
+    blocks = []
+    block = _block("Identitas", identity, emoji="👤")
+    if block:
+        blocks.append(block)
+
+    address = []
+    if _available(profile.get("alamat")):
+        address.append(_text(profile["alamat"]))
+    for label, key in (("RT/RW", "rt/rw"), ("Dusun", "dusun"),
+                       ("Desa/Kelurahan", "kelurahan"), ("Kecamatan", "kecamatan"),
+                       ("Kabupaten/Kota", "kabupaten"), ("Provinsi", "provinsi"),
+                       ("Kode Pos", "kode_pos")):
+        if _available(profile.get(key)):
+            address.append(_plain_line(label, profile[key]))
+    block = _block("Alamat", address, emoji="🏠")
+    if block:
+        blocks.append(block)
+    if _available(profile.get("google_maps")):
+        blocks.append(_block("Google Maps", [_url(profile["google_maps"])], emoji="🗺️"))
+    codes = _kk_codes(profile.get("nomor_wilayah"))
+    if codes:
+        blocks.append(_block("Kode Wilayah", codes, emoji="📍"))
+
+    for title, group, emoji in (("Data Ayah", "DATA AYAH", "👨"), ("Data Ibu", "DATA IBU", "👩")):
+        parent = _kk_parent(records, group)
+        lines = []
+        if _available(parent.get("nama")):
+            lines.append(_plain_line("Nama", parent["nama"]))
+        if _available(parent.get("nik")):
+            lines.append(_plain_line("NIK", parent["nik"], code=True))
+        block = _block(title, lines, emoji=emoji)
+        if block:
+            blocks.append(block)
+
+    lainnya = next((record for record in records if _record_group(record) == "LAINNYA"), {})
+    other_lines = []
+    for label, key in (("Pendidikan", "pendidikan"), ("Pekerjaan", "pekerjaan"),
+                       ("Gol. Darah", "gol._darah"), ("Disabilitas", "penyandang_cacat")):
+        if _available(lainnya.get(key)):
+            other_lines.append(_plain_line(label, lainnya[key]))
+    block = _block("Informasi Lain", other_lines, emoji="📋")
+    if block:
+        blocks.append(block)
+
+    akta = next((record for record in records if _record_group(record) == "AKTA"), {})
+    act_lines = []
+    for label, key in (("No. Akta Lahir", "no._akta_lahir"), ("No. Akta Kawin", "no._akta_kawin"),
+                       ("Tgl. Kawin", "tgl_kawin"), ("No. Akta Cerai", "no._akta_cerai"),
+                       ("Tgl. Cerai", "tgl_cerai")):
+        if _available(akta.get(key)):
+            act_lines.append(_plain_line(label, akta[key]))
+    block = _block("Data Akta", act_lines, emoji="📜")
+    if block:
+        blocks.append(block)
+    if not blocks:
+        blocks.append("Data kartu keluarga belum tersedia.")
+    return _section("👨‍👩‍👧‍👦 *INFORMASI KARTU KELUARGA*", "\n\n".join(blocks))
+
+
+def _kk_members(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    member_markers = {
+        "nomor_kk", "status_hubungan", "ayah", "ibu", "nik_ayah", "nik_ibu",
+        "tempat/tgl_lahir", "jenis_kelamin", "desa/kelurahan", "kabupaten/kota",
+    }
+    grouped: dict[str, dict[str, Any]] = {}
+    order: list[str] = []
+    for index, record in enumerate(records):
+        if _record_group(record) in {"DATA AYAH", "DATA IBU", "LAINNYA", "AKTA"}:
+            continue
+        name = record.get("nama_lengkap") or record.get("nama")
+        nik = record.get("nik")
+        has_identity = _available(nik) or _available(name)
+        has_family_data = any(_available(record.get(key)) for key in member_markers)
+        if not has_identity or not has_family_data:
+            continue
+
+        nik_text = _text(nik) if _available(nik) else ""
+        name_text = _text(name).upper() if _available(name) else ""
+        key = f"nik:{nik_text}" if nik_text not in {"", "N/A", "-"} else f"name:{name_text or index}"
+        if key not in grouped:
+            grouped[key] = dict(record)
+            order.append(key)
+            continue
+        merged = grouped[key]
+        for field, value in record.items():
+            current = merged.get(field)
+            if (_available(value)
+                    and (not _available(current) or _text(current).upper() in {"N/A", "-"})):
+                merged[field] = value
+    return [grouped[key] for key in order]
+
+
+def _split_birth(value: Any) -> tuple[str, str]:
+    text = _text(value) if _available(value) else ""
+    if "," not in text:
+        return text, ""
+    place, date = text.rsplit(",", 1)
+    return place.strip(), _display_date(date.strip())
+
+
+def _kk_member_names(records: list[dict[str, Any]], profile: Mapping[str, Any]) -> dict[str, str]:
+    names = _member_names(records)
+    if _available(profile.get("nik")) and _available(profile.get("nama_lengkap")):
+        names[_text(profile["nik"])] = _text(profile["nama_lengkap"])
+    for record in records:
+        for name_key, nik_key in (("ayah", "nik_ayah"), ("ibu", "nik_ibu")):
+            if _available(record.get(name_key)) and _available(record.get(nik_key)):
+                nik = _text(record[nik_key])
+                if nik not in {"N/A", "-"}:
+                    names[nik] = _text(record[name_key])
+    return names
+
+
+def _render_kk_members(records: list[dict[str, Any]]) -> str:
+    members = _kk_members(records)
+    if not members:
+        return _section("👥 *ANGGOTA KELUARGA*", "Data anggota keluarga belum tersedia.")
+    names = _kk_member_names(records, _kk_profile(records))
+    cards = []
+    for number, member in enumerate(members, 1):
+        nik = _text(member.get("nik", ""))
+        name = member.get("nama") or names.get(nik) or f"NIK {nik}"
+        lines = []
+        for label, key, code in (("NIK", "nik", True), ("No. KK", "nomor_kk", True),
+                                 ("Jenis Kelamin", "jenis_kelamin", False)):
+            if _available(member.get(key)):
+                lines.append(_plain_line(label, member[key], code=code))
+        place, date = _split_birth(member.get("tempat/tgl_lahir"))
+        if not place and _available(member.get("tempat_lahir")):
+            place = _text(member["tempat_lahir"])
+        if not date and _available(member.get("tanggal_lahir")):
+            date = _display_date(member["tanggal_lahir"])
+        birth = ", ".join(value for value in (place, date) if value)
+        if birth:
+            lines.append(_plain_line("Lahir", birth))
+        for label, key in (("Status Kawin", "status_kawin"), ("Hubungan", "status_hubungan")):
+            if _available(member.get(key)):
+                lines.append(_plain_line(label, member[key]))
+
+        domicile = []
+        for label, keys in (("Alamat", ("alamat",)), ("RT/RW", ("rt/rw",)),
+                            ("Desa/Kelurahan", ("desa/kelurahan", "kelurahan")),
+                            ("Kecamatan", ("kecamatan",)),
+                            ("Kabupaten/Kota", ("kabupaten/kota", "kabupaten")),
+                            ("Provinsi", ("provinsi",)), ("Kode Pos", ("kode_pos",))):
+            value = next((member.get(key) for key in keys if _available(member.get(key))), None)
+            if _available(value):
+                domicile.append(_plain_line(label, value))
+        if domicile:
+            lines.extend(["", _block("Domisili", domicile, emoji="🏠")])
+
+        for emoji, label, name_key, nik_key in (("👨", "Ayah", "ayah", "nik_ayah"),
+                                                ("👩", "Ibu", "ibu", "nik_ibu")):
+            if _available(member.get(name_key)):
+                lines.extend(["", _plain_line(f"{emoji} {label}", member[name_key])])
+            if _available(member.get(nik_key)):
+                lines.append(_plain_line(f"NIK {label}", member[nik_key], code=True))
+        cards.append(_block(f"{number}. {_text(name)}", lines, emoji="👤"))
+    return _section("👥 *ANGGOTA KELUARGA*", f"\n\n{'┄' * 10}\n\n".join(cards))
+
+
+def _render_kk_summary(records: list[dict[str, Any]]) -> str:
+    profile = _kk_profile(records)
+    members = _kk_members(records)
+    total_record = next((record for record in records if _available(record.get("total_anggota"))), {})
+    head = next((member for member in members
+                 if _text(member.get("status_hubungan", "")).upper() == "KEPALA KELUARGA"), {})
+    names = _kk_member_names(records, profile)
+    head_nik = _text(head.get("nik", ""))
+    head_name = head.get("nama") or names.get(head_nik) or profile.get("nama_lengkap")
+    kk = profile.get("nomor_kk") or (members[0].get("nomor_kk") if members else None)
+    lines = []
+    if _available(kk):
+        lines.append(_plain_line("No. KK", kk, code=True))
+    if _available(head_name):
+        lines.append(_plain_line("Kepala Keluarga", head_name, bold=True))
+    total = total_record.get("total_anggota")
+    if not _available(total) and members:
+        total = len(members)
+    if _available(total):
+        lines.append(_plain_line("Jumlah Anggota", total))
+
+    kelurahan = profile.get("kelurahan") or head.get("desa/kelurahan")
+    kecamatan = profile.get("kecamatan") or head.get("kecamatan")
+    kabupaten = profile.get("kabupaten") or head.get("kabupaten/kota")
+    provinsi = profile.get("provinsi") or head.get("provinsi")
+    first_location = ", ".join(_text(value) for value in (kelurahan, kecamatan) if _available(value))
+    second_location = ", ".join(_text(value) for value in (kabupaten, provinsi) if _available(value))
+    if first_location or second_location:
+        lines.append("")
+    if first_location:
+        lines.append(f"📍 {first_location}")
+    if second_location:
+        lines.append(second_location)
+    if not lines:
+        lines.append("Data ringkasan keluarga belum tersedia.")
+    return _section("📊 *RINGKASAN KELUARGA*", "\n".join(lines))
+
+
+def _track_first(records: list[dict[str, Any]], *keys: str) -> Any:
+    for record in records:
+        for key in keys:
+            if _available(record.get(key)):
+                return record[key]
+    return None
+
+
+def _track_timestamp(records: list[dict[str, Any]]) -> tuple[str, str]:
+    months = {
+        "jan": "Jan", "feb": "Feb", "mar": "Mar", "apr": "Apr",
+        "mei": "May", "may": "May", "jun": "Jun", "jul": "Jul",
+        "agu": "Aug", "aug": "Aug", "sep": "Sep", "okt": "Oct",
+        "oct": "Oct", "nov": "Nov", "des": "Dec", "dec": "Dec",
+    }
+    for record in records:
+        for key, value in record.items():
+            match = re.fullmatch(
+                r"tanggal_(\d{1,2})_([a-z]+)_(\d{4})_pukul_(\d{1,2})",
+                str(key), re.I,
+            )
+            if not match or not _available(value):
+                continue
+            day, month, year, hour = match.groups()
+            date = f"{int(day):02d} {months.get(month.lower(), month.title())} {year}"
+            raw_time = re.sub(r"\s*WIB\s*$", "", _text(value), flags=re.I).strip()
+            if re.fullmatch(r"\d{1,2}:\d{2}", raw_time):
+                raw_time = f"{int(hour):02d}:{raw_time}"
+            elif re.fullmatch(r"\d{2}:\d{2}:\d{2}", raw_time):
+                pass
+            else:
+                raw_time = f"{int(hour):02d}:{raw_time}" if raw_time else f"{int(hour):02d}:00:00"
+            return date, raw_time
+
+    date = _track_first(records, "tanggal_tracking", "tanggal_pengecekan")
+    time = _track_first(records, "waktu_tracking", "waktu_pengecekan")
+    now_gmt7 = datetime.now(timezone(timedelta(hours=7)))
+    fallback_date = now_gmt7.strftime("%d %b %Y")
+    fallback_time = now_gmt7.strftime("%H:%M:%S")
+    return (_text(date) if _available(date) else fallback_date,
+            _text(time).removesuffix(" WIB") if _available(time) else fallback_time)
+
+
+def _track_network(records: list[dict[str, Any]]) -> tuple[str, str, str, str, str]:
+    provider = _track_first(records, "provider")
+    mcc = _track_first(records, "mcc")
+    mnc = _track_first(records, "mnc")
+    lac = _track_first(records, "lac")
+    cid = _track_first(records, "cid")
+    for record in records:
+        group = _text(record.get("bagian", ""))
+        match = re.search(r"MCC\s*([\w]+)\s*-\s*MNC\s*([\w]+)\s*=\s*(.+)", group, re.I)
+        if match:
+            mcc = mcc or match.group(1)
+            mnc = mnc or match.group(2)
+            provider = provider or match.group(3).strip()
+        raw_lac = _text(record.get("lac", ""))
+        match = re.search(r"LAC\s*[:=]?\s*([\w]+).*?CID\s*[:=]?\s*([\w]+)", raw_lac, re.I)
+        if match:
+            lac = match.group(1)
+            cid = match.group(2)
+        elif _available(record.get("lac")):
+            match = re.search(r"^\s*([\w]+)\s*-\s*CID\s*[:=]?\s*([\w]+)", raw_lac, re.I)
+            if match:
+                lac = match.group(1)
+                cid = match.group(2)
+    return tuple(_text(value) if _available(value) else "N/A"
+                 for value in (provider, mcc, mnc, lac, cid))
+
+
+def _track_coordinates(records: list[dict[str, Any]]) -> tuple[str, str]:
+    raw = _track_first(records, "data_koordinat", "koordinat", "coordinates")
+    if _available(raw):
+        match = re.search(
+            r"LAT\s*[:=]?\s*(-?\d+(?:\.\d+)?)\s+.*?LON\s*[:=]?\s*(-?\d+(?:\.\d+)?)",
+            _text(raw), re.I,
+        )
+        if match:
+            return match.group(1), match.group(2)
+    latitude = _track_first(records, "latitude", "lat")
+    longitude = _track_first(records, "longitude", "lon", "lng")
+    return (_text(latitude) if _available(latitude) else "N/A",
+            _text(longitude) if _available(longitude) else "N/A")
+
+
+def _track_device(value: Any) -> tuple[str, str]:
+    text = _text(value) if _available(value) else "N/A"
+    if text == "N/A":
+        return text, text
+    brands = (
+        "APPLE", "SAMSUNG", "XIAOMI", "REDMI", "OPPO", "VIVO", "REALME",
+        "HUAWEI", "GOOGLE", "NOKIA", "INFINIX", "TECNO", "ASUS", "SONY",
+        "MOTOROLA", "ONEPLUS", "LENOVO", "BLACKBERRY",
+    )
+    parts = text.split(maxsplit=1)
+    if len(parts) == 1:
+        return parts[0], "N/A"
+    if parts[0].upper() in brands:
+        return parts[0], parts[1]
+    return parts[0], parts[1]
+
+
+def _track_maps_url(records: list[dict[str, Any]], latitude: str, longitude: str) -> str:
+    direct = _track_first(records, "google_maps", "google_maps_url", "maps_url")
+    if _available(direct):
+        return _url(direct)
+    if latitude != "N/A" and longitude != "N/A":
+        return f"https://maps.google.com/?q={latitude},{longitude}"
+    return "N/A"
+
+
+def _track_mapping_url(records: list[dict[str, Any]]) -> str:
+    keys = (
+        "mapping_url", "mapping", "triangulation_url", "triangulasi_url",
+        "visualisasi_url", "visualisasi", "url_mapping",
+    )
+    value = _track_first(records, *keys)
+    return _url(value) if _available(value) else "N/A"
+
+
+def _track_line(label: str, value: Any, *, code: bool = False) -> str:
+    shown = _text(value) if _available(value) else "N/A"
+    return _plain_line(label, shown, code=code)
+
+
+def _render_track(fields: Any) -> str:
+    records = _records(fields)
+    date, time = _track_timestamp(records)
+    phone = _track_first(records, "mobile_number", "nomor", "msisdn", "no_hp")
+    whatsapp = _track_first(records, "whatsapp")
+    checked_date, checked_time = date, time
+    last_active = _track_first(records, "terakhir_aktif")
+    whatsapp_url = _track_first(records, "cek_update_manual", "cek_manual", "whatsapp_url")
+    provider, mcc, mnc, lac, cid = _track_network(records)
+    imsi = _track_first(records, "data_imsi", "imsi")
+    imei = _track_first(records, "data_imei", "imei")
+    device_type, device_model = _track_device(
+        _track_first(records, "jenis_hp_dan_type_hp", "jenis_hp", "tipe_hp")
+    )
+    latitude, longitude = _track_coordinates(records)
+    maps_url = _track_maps_url(records, latitude, longitude)
+    residence = _track_first(records, "kediaman", "alamat")
+    mapping_url = _track_mapping_url(records)
+    keterangan = _track_first(records, "keterangan_whatsapp", "status_whatsapp_detail")
+
+    lines = [
+        "📡 *TRACKING PHONE*",
+        "",
+        f"🕐 {date} • {time} WIB",
+        "",
+        SEPARATOR,
+        "📱 *INFORMASI NOMOR*",
+        SEPARATOR,
+        "",
+        _track_line("Nomor", phone, code=True),
+        "",
+        "💬 *WhatsApp*",
+        "",
+        _track_line("Status", whatsapp),
+    ]
+    if _available(keterangan):
+        lines.append(_text(keterangan))
+    lines.extend([
+        "",
+        _track_line("Dicek", f"{checked_date} {checked_time} WIB"),
+        f"🔗 {_url(whatsapp_url) if _available(whatsapp_url) else 'N/A'}",
+        "",
+        "⚡ *Aktivitas*",
+        "",
+        _track_line("Terakhir Aktif", last_active),
+        "",
+        SEPARATOR,
+        "📶 *INFORMASI JARINGAN*",
+        SEPARATOR,
+        "",
+        _track_line("Provider", provider),
+        _track_line("MCC", mcc, code=True),
+        _track_line("MNC", mnc, code=True),
+        "",
+        _track_line("LAC", lac, code=True),
+        _track_line("CID", cid, code=True),
+        "",
+        SEPARATOR,
+        "📡 *INFORMASI PERANGKAT*",
+        SEPARATOR,
+        "",
+        _track_line("IMSI", imsi, code=True),
+        _track_line("IMEI", imei, code=True),
+        "",
+        _track_line("📱 Jenis HP", device_type),
+        _track_line("📋 Tipe HP", device_model),
+        "",
+        SEPARATOR,
+        "📍 *DATA LOKASI*",
+        SEPARATOR,
+        "",
+        _track_line("Latitude", latitude, code=True),
+        _track_line("Longitude", longitude, code=True),
+        "",
+        _track_line("🏠 Kediaman", residence),
+        "",
+        "🗺️ *Google Maps*",
+        maps_url,
+        "",
+        SEPARATOR,
+        "📡 *MAPPING & TRIANGULASI*",
+        SEPARATOR,
+        "",
+        "Mapping Area, Triangulation & Visualisasi Sektor:",
+        "",
+        f"🔗 {mapping_url}",
+        "",
+        SEPARATOR,
+        "✅ *AKHIR HASIL*",
+        SEPARATOR,
+    ])
+    return "\n".join(lines)
+
+
+def _render_kk_sections(fields: Any) -> list[str]:
+    records = _records(fields)
+    sections = [
+        _render_kk_information(records),
+        _render_kk_members(records),
+        _render_kk_summary(records),
+    ]
+    if sections:
+        sections[0] = f"🔎 *HASIL PENCARIAN DATA*\n\n{SEPARATOR}\n" + sections[0]
+        sections[-1] += f"\n✅ *AKHIR HASIL*\n{SEPARATOR}"
+    return sections
+
+
 def _split_section(section: str, max_chars: int) -> list[str]:
     if len(section) <= max_chars:
         return [section]
@@ -1194,3 +1706,34 @@ def format_nik_messages(fields: Any, max_chars: int = 4000) -> list[str]:
 def format_nik(fields: Any) -> str:
     """Render hasil NIK sebagai satu string gabungan."""
     return "\n\n".join(format_nik_sections(fields))
+
+
+def format_kk_sections(fields: Any) -> list[str]:
+    """Render hasil KK sesuai template output kartu keluarga."""
+    return _render_kk_sections(fields)
+
+
+def format_kk_messages(fields: Any, max_chars: int = 4000) -> list[str]:
+    """Render hasil KK sebagai pesan Telegram per section."""
+    return [_chunk for section in format_kk_sections(fields) for _chunk in _split_section(section, max_chars)]
+
+
+def format_kk(fields: Any) -> str:
+    """Render hasil KK sebagai satu string gabungan."""
+    return "\n\n".join(format_kk_sections(fields))
+
+
+def format_track_sections(fields: Any) -> list[str]:
+    """Render hasil tracking phone sesuai template output tracking."""
+    return [_render_track(fields)]
+
+
+def format_track_messages(fields: Any, max_chars: int = 4000) -> list[str]:
+    """Render hasil tracking phone sebagai pesan Telegram."""
+    return [_chunk for section in format_track_sections(fields)
+            for _chunk in _split_section(section, max_chars)]
+
+
+def format_track(fields: Any) -> str:
+    """Render hasil tracking phone sebagai satu string gabungan."""
+    return "\n\n".join(format_track_sections(fields))
