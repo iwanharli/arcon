@@ -27,6 +27,7 @@ from telethon import Button, TelegramClient, events
 
 import config
 import db
+import tgbot_reply_formatter
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("artemis.tgbot")
@@ -349,7 +350,7 @@ def potong_pesan(teks: str, maks: int = 4000) -> list[str]:
 _LIMIT_KATA = ("batas penggunaan", "limit tercapai", "kuota", "quota", "coba lagi besok")
 
 
-def format_hasil(hasil: dict, judul: str) -> str:
+def format_hasil(hasil: dict, judul: str, key: str | None = None) -> str:
     if hasil.get("state") == "cancelled":
         return f"🛑 Pencarian **{judul}** dibatalkan."
     # Deadline poll habis tapi job belum selesai: hasilnya tetap diproses di
@@ -369,12 +370,31 @@ def format_hasil(hasil: dict, judul: str) -> str:
     if status == "found":
         f = hasil.get("fields")
         if isinstance(f, list):
-            blok = [f"┌ **{i}**\n{_fmt_record(r)}" for i, r in enumerate(f, 1)
-                    if isinstance(r, dict)]
-            body = "\n\n".join(blok) or (hasil.get("msg") or "(kosong)")
-            head = f"✅ Ditemukan {len(blok)} data — {judul}"
+            if key == "nikbyphone":
+                return tgbot_reply_formatter.format_nikbyphone(f)
+            if key == "nik":
+                return tgbot_reply_formatter.format_nik(f)
+            if key == "kk":
+                return tgbot_reply_formatter.format_kk(f)
+            if key == "track":
+                return tgbot_reply_formatter.format_track(f)
+            else:
+                blok = [f"┌ **{i}**\n{_fmt_record(r)}" for i, r in enumerate(f, 1)
+                        if isinstance(r, dict)]
+                body = "\n\n".join(blok) or (hasil.get("msg") or "(kosong)")
+                head = f"✅ Ditemukan {len(blok)} data — {judul}"
         elif isinstance(f, dict):
-            body, head = _fmt_record(f), f"✅ Ditemukan — {judul}"
+            if key == "nikbyphone":
+                return tgbot_reply_formatter.format_nikbyphone(f)
+            if key == "nik":
+                return tgbot_reply_formatter.format_nik(f)
+            if key == "kk":
+                return tgbot_reply_formatter.format_kk(f)
+            if key == "track":
+                return tgbot_reply_formatter.format_track(f)
+            else:
+                body = _fmt_record(f)
+            head = f"✅ Ditemukan — {judul}"
         else:
             body, head = (hasil.get("msg") or "(kosong)"), f"✅ {judul}"
         return f"{head}\n\n{body}"
@@ -719,29 +739,86 @@ async def main() -> None:
             for r in recs:
                 murl_maps = murl_maps or maps_link(r)
 
-        teks = format_hasil(hasil, judul)
+        nikbyphone_found = key == "nikbyphone" and hasil.get("status") == "found"
+        nik_found = key == "nik" and hasil.get("status") == "found"
+        kk_found = key == "kk" and hasil.get("status") == "found"
+        track_found = key == "track" and hasil.get("status") == "found"
+        if nikbyphone_found:
+            bagian = tgbot_reply_formatter.format_nikbyphone_messages(hasil.get("fields"))
+            if not bagian:
+                bagian = potong_pesan(format_hasil(hasil, judul))
+        elif nik_found:
+            bagian = tgbot_reply_formatter.format_nik_messages(hasil.get("fields"))
+            if not bagian:
+                bagian = potong_pesan(format_hasil(hasil, judul))
+        elif kk_found:
+            bagian = tgbot_reply_formatter.format_kk_messages(hasil.get("fields"))
+            if not bagian:
+                bagian = potong_pesan(format_hasil(hasil, judul))
+        elif track_found:
+            bagian = tgbot_reply_formatter.format_track_messages(hasil.get("fields"))
+            if not bagian:
+                bagian = potong_pesan(format_hasil(hasil, judul))
+        else:
+            teks = format_hasil(hasil, judul, key)
+            bagian = potong_pesan(teks)
         media = hasil.get("media") or []
         tombol = kb_hasil(murl_maps) if not media else None
 
+        # Untuk nikbyphone dan nik, judul dibuat menjadi pesan sendiri agar
+        # media tampil tepat di bawah judul, sebelum isi hasil pencarian.
+        header_terpisah = nikbyphone_found or nik_found
+        if header_terpisah:
+            header = "🔎 *HASIL PENCARIAN DATA*"
+            if bagian[0].startswith(header):
+                bagian[0] = bagian[0][len(header):].lstrip("\n")
+            elif nik_found:
+                header, pemisah, isi = bagian[0].partition("\n\n")
+                if pemisah:
+                    bagian[0] = isi
+                else:
+                    bagian.pop(0)
+            await tunggu.edit(header, buttons=None, link_preview=False)
+
+        async def kirim_media(tombol_media):
+            for i, murl in enumerate(media[:10]):
+                try:
+                    blob = await asyncio.to_thread(_fetch_media, murl)
+                    if blob:
+                        await client.send_file(
+                            uid,
+                            blob,
+                            force_document=False,
+                            buttons=(tombol_media
+                                     if i == len(media[:10]) - 1 else None),
+                        )
+                except Exception as e:  # noqa: BLE001
+                    log.warning("gagal kirim media: %s", e)
+
+        # Khusus nikbyphone dan nik: media dikirim di bawah judul, sebelum hasil.
+        if header_terpisah:
+            await kirim_media(None)
+
         # Hasil panjang (KK banyak anggota) melebihi batas 1 pesan Telegram:
         # dipecah jadi beberapa pesan teks, tombol menempel di pesan terakhir.
-        bagian = potong_pesan(teks)
-        await tunggu.edit(bagian[0],
-                          buttons=tombol if len(bagian) == 1 else None,
-                          link_preview=False)
+        if not header_terpisah:
+            await tunggu.edit(bagian[0],
+                              buttons=tombol if len(bagian) == 1 else None,
+                              link_preview=False)
+        else:
+            tombol = kb_kembali() if media else kb_hasil(murl_maps)
+            await client.send_message(uid, bagian[0],
+                                      buttons=tombol if len(bagian) == 1 else None,
+                                      link_preview=False)
         for i, sisa in enumerate(bagian[1:]):
             akhir = i == len(bagian) - 2
             await client.send_message(uid, sisa, link_preview=False,
                                       buttons=tombol if akhir else None)
 
-        for i, murl in enumerate(media[:10]):
-            try:
-                blob = await asyncio.to_thread(_fetch_media, murl)
-                if blob:
-                    await client.send_file(uid, blob, force_document=False,
-                                           buttons=kb_kembali() if i == len(media[:10]) - 1 else None)
-            except Exception as e:  # noqa: BLE001
-                log.warning("gagal kirim media: %s", e)
+        # Command lain mempertahankan urutan lama: teks lebih dahulu, media
+        # setelah seluruh hasil teks terkirim.
+        if not header_terpisah:
+            await kirim_media(kb_kembali())
 
     # Command tak dikenal (/foo) tidak boleh senyap — dulu /help diabaikan
     # tanpa balasan sehingga terlihat seperti "bot mati". Command yang sah

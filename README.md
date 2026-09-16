@@ -821,6 +821,42 @@ bot lama:
 `parser.bersihkan_baris()` membuang gambar pohon dan penanda markdown sebelum
 `KV_RE` dijalankan. Tanpa itu seluruh balasan terbaca sebagai teks bebas.
 
+### Formatter balasan Telegram
+
+[tgbot_reply_formatter.py](tgbot_reply_formatter.py) mengatur format hasil
+yang dikirim oleh [tgbot_simple.py](tgbot_simple.py) ke pengguna Telegram.
+Formatter ini hanya mengubah tampilan balasan; tidak mengubah payload pencarian,
+isi `search_jobs`, atau data hasil di database.
+
+Command yang memiliki format khusus:
+
+| Command | Formatter | Keterangan |
+|---|---|---|
+| `/nikbyphone` | `format_nikbyphone_messages()` | Hasil NIK dari nomor HP per section |
+| `/nik` | `format_nik_messages()` | Informasi kependudukan, keluarga, telepon, dan section terkait |
+| `/kk` | `format_kk_messages()` | Informasi KK, anggota keluarga, dan ringkasan keluarga |
+| `/track` | `format_track_messages()` | Tracking nomor, jaringan, perangkat, lokasi, dan triangulasi |
+
+Fungsi `*_messages()` mengembalikan `list[str]` agar satu section dapat dikirim
+sebagai satu pesan Telegram. Section yang lebih panjang dari batas Telegram
+akan dipecah otomatis pada batas blok/baris, dengan batas default 4.000 karakter.
+Fungsi `format_nikbyphone()`, `format_nik()`, `format_kk()`, dan `format_track()`
+mengembalikan satu string gabungan untuk kebutuhan tampilan atau pengujian.
+
+Formatter `/kk` dibuat longgar terhadap field API yang tidak lengkap. Tiga
+segment utama tetap dikirim:
+
+1. `INFORMASI KARTU KELUARGA`
+2. `ANGGOTA KELUARGA`
+3. `RINGKASAN KELUARGA`
+
+Jika sebagian data tidak tersedia, segment tetap muncul dengan keterangan data
+belum tersedia. Record anggota dideduplikasi berdasarkan NIK bila NIK tersedia.
+
+Pada `/track`, tanggal dan waktu tracking dibaca dari field timestamp dinamis,
+misalnya `tanggal_16_sep_2026_pukul_03`. Jika tanggal atau waktunya kosong,
+formatter menggunakan waktu saat ini dengan zona **GMT+7** sebagai fallback.
+
 ### Daftar hasil: dua pola berbeda
 
 Ditelusuri 9 Sep 2026. Balasan yang memuat banyak hasil ternyata ada dua jenis,
