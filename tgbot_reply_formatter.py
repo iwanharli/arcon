@@ -1492,7 +1492,7 @@ def _track_network(records: list[dict[str, Any]]) -> tuple[str, str, str, str, s
             if match:
                 lac = match.group(1)
                 cid = match.group(2)
-    return tuple(_text(value) if _available(value) else "N/A"
+    return tuple(_text(value) if _available(value) else ""
                  for value in (provider, mcc, mnc, lac, cid))
 
 
@@ -1507,8 +1507,8 @@ def _track_coordinates(records: list[dict[str, Any]]) -> tuple[str, str]:
             return match.group(1), match.group(2)
     latitude = _track_first(records, "latitude", "lat")
     longitude = _track_first(records, "longitude", "lon", "lng")
-    return (_text(latitude) if _available(latitude) else "N/A",
-            _text(longitude) if _available(longitude) else "N/A")
+    return (_text(latitude) if _available(latitude) else "",
+            _text(longitude) if _available(longitude) else "")
 
 
 def _track_device(value: Any) -> tuple[str, str]:
@@ -1532,9 +1532,9 @@ def _track_maps_url(records: list[dict[str, Any]], latitude: str, longitude: str
     direct = _track_first(records, "google_maps", "google_maps_url", "maps_url")
     if _available(direct):
         return _url(direct)
-    if latitude != "N/A" and longitude != "N/A":
+    if latitude and longitude:
         return f"https://maps.google.com/?q={latitude},{longitude}"
-    return "N/A"
+    return ""
 
 
 def _track_mapping_url(records: list[dict[str, Any]]) -> str:
@@ -1543,7 +1543,7 @@ def _track_mapping_url(records: list[dict[str, Any]]) -> str:
         "visualisasi_url", "visualisasi", "url_mapping",
     )
     value = _track_first(records, *keys)
-    return _url(value) if _available(value) else "N/A"
+    return _url(value) if _available(value) else ""
 
 
 def _track_line(label: str, value: Any, *, code: bool = False) -> str:
@@ -1556,92 +1556,43 @@ def _render_track(fields: Any) -> str:
     date, time = _track_timestamp(records)
     phone = _track_first(records, "mobile_number", "nomor", "msisdn", "no_hp")
     whatsapp = _track_first(records, "whatsapp")
-    checked_date, checked_time = date, time
     last_active = _track_first(records, "terakhir_aktif")
     whatsapp_url = _track_first(records, "cek_update_manual", "cek_manual", "whatsapp_url")
     provider, mcc, mnc, lac, cid = _track_network(records)
     imsi = _track_first(records, "data_imsi", "imsi")
     imei = _track_first(records, "data_imei", "imei")
-    device_type, device_model = _track_device(
-        _track_first(records, "jenis_hp_dan_type_hp", "jenis_hp", "tipe_hp")
-    )
+    device = _track_first(records, "jenis_hp_dan_type_hp", "jenis_hp", "tipe_hp")
     latitude, longitude = _track_coordinates(records)
     maps_url = _track_maps_url(records, latitude, longitude)
     residence = _track_first(records, "kediaman", "alamat")
     mapping_url = _track_mapping_url(records)
-    keterangan = _track_first(records, "keterangan_whatsapp", "status_whatsapp_detail")
+    keterangan = _track_first(
+        records, "whatsapp_keterangan", "keterangan_whatsapp", "status_whatsapp_detail", "keterangan"
+    )
+
+    def value(raw: Any) -> str:
+        return _text(raw) if _available(raw) else ""
 
     lines = [
-        "📡 *TRACKING PHONE*",
-        "",
-        f"🕐 {date} • {time} WIB",
-        "",
-        SEPARATOR,
-        "📱 *INFORMASI NOMOR*",
-        SEPARATOR,
-        "",
-        _track_line("Nomor", phone, code=True),
-        "",
-        "💬 *WhatsApp*",
-        "",
-        _track_line("Status", whatsapp),
+        f"Tanggal {date} pukul {time} WIB",
+        f"MOBILE NUMBER: {value(phone)}",
+        f"WHATSAPP: {value(whatsapp)}",
+        value(keterangan),
+        f"Cek update manual: {value(_url(whatsapp_url) if _available(whatsapp_url) else '')}",
+        f"TERAKHIR AKTIF: {value(last_active)}",
+        f"MCC {mcc}-MNC {mnc} = {provider}",
+        f"LAC: {lac}",
+        f"CID: {cid}",
+        f"DATA IMSI: {value(imsi)}",
+        f"DATA IMEI: {value(imei)}",
+        "DATA KOORDINAT:",
+        f"LAT: {latitude}",
+        f"LON: {longitude}",
+        f"GOOGLE MAPS: {maps_url}",
+        f"MAPPING AREA, TRIANGULATION DAN VISUALISASI SEKTOR: {mapping_url}",
+        f"KEDIAMAN: {value(residence)}",
+        f"JENIS HP DAN TYPE HP: {value(device)}",
     ]
-    if _available(keterangan):
-        lines.append(_text(keterangan))
-    lines.extend([
-        "",
-        _track_line("Dicek", f"{checked_date} {checked_time} WIB"),
-        f"🔗 {_url(whatsapp_url) if _available(whatsapp_url) else 'N/A'}",
-        "",
-        "⚡ *Aktivitas*",
-        "",
-        _track_line("Terakhir Aktif", last_active),
-        "",
-        SEPARATOR,
-        "📶 *INFORMASI JARINGAN*",
-        SEPARATOR,
-        "",
-        _track_line("Provider", provider),
-        _track_line("MCC", mcc, code=True),
-        _track_line("MNC", mnc, code=True),
-        "",
-        _track_line("LAC", lac, code=True),
-        _track_line("CID", cid, code=True),
-        "",
-        SEPARATOR,
-        "📡 *INFORMASI PERANGKAT*",
-        SEPARATOR,
-        "",
-        _track_line("IMSI", imsi, code=True),
-        _track_line("IMEI", imei, code=True),
-        "",
-        _track_line("📱 Jenis HP", device_type),
-        _track_line("📋 Tipe HP", device_model),
-        "",
-        SEPARATOR,
-        "📍 *DATA LOKASI*",
-        SEPARATOR,
-        "",
-        _track_line("Latitude", latitude, code=True),
-        _track_line("Longitude", longitude, code=True),
-        "",
-        _track_line("🏠 Kediaman", residence),
-        "",
-        "🗺️ *Google Maps*",
-        maps_url,
-        "",
-        SEPARATOR,
-        "📡 *MAPPING & TRIANGULASI*",
-        SEPARATOR,
-        "",
-        "Mapping Area, Triangulation & Visualisasi Sektor:",
-        "",
-        f"🔗 {mapping_url}",
-        "",
-        SEPARATOR,
-        "✅ *AKHIR HASIL*",
-        SEPARATOR,
-    ])
     return "\n".join(lines)
 
 
