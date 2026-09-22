@@ -1,10 +1,16 @@
-"""Pengecekan kesehatan seluruh command, dijalankan sehari sekali.
+"""Pengecekan kesehatan seluruh command — MANUAL SAJA.
 
-    python healthcheck.py            # cek semua command yang punya probe
-    python healthcheck.py bot1       # cek satu bot saja
-    python healthcheck.py --report   # tampilkan hasil terakhir, tanpa hit bot
+    python healthcheck.py --force            # cek semua command yang punya probe
+    python healthcheck.py bot1 --force       # cek satu bot saja
+    python healthcheck.py --report           # tampilkan hasil terakhir, tanpa hit bot
 
-Dijadwalkan lewat pm2 (cron_restart) tiap hari jam 02:00 WIB.
+Penjadwalan otomatis harian (pm2 cron_restart, sebelumnya jam 02:00/03:00 WIB)
+DIHAPUS (King, 2026-09-23) — hit force=true sungguhan ke bot tiap hari dirasa
+mengganggu. Sekarang TANPA flag --force, script langsung keluar tanpa menyentuh
+apa pun (lihat guard di __main__) — jadi walau proses pm2 lama di VPS masih
+memanggil script ini tanpa argumen, deploy berikutnya membuatnya berhenti hit
+apa pun. Command hanya dicek kalau seseorang menjalankannya manual dengan
+--force secara sadar.
 
 Cara kerja penting:
 
@@ -236,5 +242,17 @@ if __name__ == "__main__":
     args = sys.argv[1:]
     if "--report" in args:
         raise SystemExit(asyncio.run(laporan()))
+    if "--force" not in args:
+        # Guard mati-otomatis (King, 2026-09-23): tanpa --force, script keluar
+        # tanpa menyentuh API/bot sama sekali. Ini SENGAJA supaya proses pm2
+        # lama di VPS yang masih memanggil "python healthcheck.py" tanpa
+        # argumen (cron_restart harian) berhenti hit bot begitu deploy
+        # berikutnya jalan — tanpa perlu masuk VPS untuk hapus job pm2-nya
+        # secara terpisah. Jalankan manual dengan --force kalau memang mau
+        # mengecek kesehatan command secara sadar.
+        log.info("dilewati: tidak ada --force (penjadwalan otomatis sudah "
+                  "dihapus, jalankan manual dengan --force kalau perlu cek)")
+        raise SystemExit(0)
+    args = [a for a in args if a != "--force"]
     target = args[0] if args and not args[0].startswith("-") else None
     raise SystemExit(asyncio.run(jalankan(target)))

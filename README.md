@@ -110,31 +110,24 @@ di cache (dipakai healthcheck).
   `tgbot:@<username>`.
 - `bot_audit` — pencarian lewat bot Telegram: `telegram_id`, `username`, `name`.
 
-## Pengecekan command berkala (harian)
+## Pengecekan command berkala (manual)
 
 ```bash
 psql -d db_artemis -f migrations/003_command_health.sql
 
-python healthcheck.py            # cek semua command yang punya probe
-python healthcheck.py bot1       # satu bot saja
+python healthcheck.py --force    # cek semua command yang punya probe (hit bot sungguhan)
+python healthcheck.py bot1 --force  # satu bot saja
 python healthcheck.py --report   # lihat hasil terakhir, tanpa menyentuh Telegram
 ```
 
-Penjadwalan harian dilakukan saat deploy di VPS memakai pm2 (`cron_restart`
-menjalankan ulang script tiap hari jam 03:00, `autorestart: false` supaya tidak
-langsung jalan lagi setelah selesai):
-
-```js
-// ecosystem.config.js
-{
-  name: "artemis-healthcheck",
-  script: ".venv/bin/python",
-  args: "healthcheck.py",
-  cwd: "/path/artemis-tele-connector",
-  autorestart: false,
-  cron_restart: "0 3 * * *",
-}
-```
+Penjadwalan otomatis harian via pm2 (`cron_restart`) DIHAPUS (King, 2026-09-23) —
+hit `force=true` sungguhan ke bot tiap hari jam 02:00/03:00 WIB dirasa
+mengganggu. `healthcheck.py` sekarang keluar tanpa melakukan apa pun kalau
+dipanggil TANPA flag `--force` — jadi kalau ada proses pm2 lama di VPS yang
+masih memanggil `python healthcheck.py` polos lewat `cron_restart`, deploy
+berikutnya membuatnya berhenti hit bot tanpa perlu masuk VPS untuk menghapus
+job pm2-nya secara terpisah. Kalau memang perlu, jalankan manual dengan
+`--force` kapan pun secara sadar.
 
 Tiga tabel yang dipakai:
 
