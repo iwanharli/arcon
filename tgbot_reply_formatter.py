@@ -1,4 +1,4 @@
-"""Formatter balasan Telegram untuk command ``/nikbyphone``, ``/nik``, ``/kk``, dan ``/track``."""
+"""Formatter balasan Telegram untuk command pencarian yang didukung."""
 from __future__ import annotations
 
 import json
@@ -54,6 +54,10 @@ _LABELS = {
     "tipe": "Tipe",
     "tahun": "Tahun",
     "warna": "Warna",
+    "nopol": "No. Polisi",
+    "nomor_polisi": "No. Polisi",
+    "nomor_rangka": "No. Rangka",
+    "nomor_mesin": "No. Mesin",
     "no_rangka": "No. Rangka",
     "no_mesin": "No. Mesin",
     "no_bpkb": "No. BPKB",
@@ -1688,3 +1692,29 @@ def format_track_messages(fields: Any, max_chars: int = 4000) -> list[str]:
 def format_track(fields: Any) -> str:
     """Render hasil tracking phone sebagai satu string gabungan."""
     return "\n\n".join(format_track_sections(fields))
+
+
+def format_tnkb_sections(fields: Any) -> list[str]:
+    """Render data kendaraan sebagai pasangan key-value sederhana."""
+    records = _records(fields)
+    if not records:
+        return ["🚗 *DATA KENDARAAN*\n\nData kendaraan belum tersedia."]
+
+    sections = []
+    for number, record in enumerate(records, 1):
+        lines = _record_lines(record)
+        title = "DATA KENDARAAN" if len(records) == 1 else f"DATA KENDARAAN {number}"
+        sections.append(_block(title, lines, emoji="🚗") or
+                        "🚗 *DATA KENDARAAN*\n\nData kendaraan belum tersedia.")
+    return sections
+
+
+def format_tnkb_messages(fields: Any, max_chars: int = 4000) -> list[str]:
+    """Render data kendaraan sebagai pesan Telegram yang mudah dibaca."""
+    return [_chunk for section in format_tnkb_sections(fields)
+            for _chunk in _split_section(section, max_chars)]
+
+
+def format_tnkb(fields: Any) -> str:
+    """Render data kendaraan sebagai satu string gabungan."""
+    return "\n\n".join(format_tnkb_sections(fields))
