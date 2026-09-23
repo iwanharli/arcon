@@ -93,19 +93,25 @@ def _lines(record: Mapping[str, Any]) -> list[str]:
     return lines
 
 
-def _vehicle_block(record: Mapping[str, Any]) -> str:
-    body = "\n".join(_lines(record)) or "Data kendaraan belum tersedia."
-    return f"{_RECORD_SEPARATOR}\n{body}\n{_RECORD_SEPARATOR}"
+def _vehicle_blocks(records: list[Mapping[str, Any]]) -> str:
+    bodies = ["\n".join(_lines(record)) or "Data kendaraan belum tersedia."
+              for record in records]
+    return f"{_RECORD_SEPARATOR}\n\n" + f"\n\n{_RECORD_SEPARATOR}\n\n".join(bodies) \
+        + f"\n\n{_RECORD_SEPARATOR}"
 
 
 def _is_vehicle_record(record: Mapping[str, Any]) -> bool:
     """Identify the vehicle portion of a long personal `/tnkb` response."""
-    owner_row = {"nik", "nama", "pemilik"}.issubset(record)
+    owner_row = _is_owner_record(record)
     vehicle_fields = {
         "merk", "tipe", "tahun", "warna", "no_bpkb", "no_stnk",
         "no_mesin", "no_rangka",
     }
     return owner_row or bool(vehicle_fields.intersection(record))
+
+
+def _is_owner_record(record: Mapping[str, Any]) -> bool:
+    return {"nik", "nama", "pemilik"}.issubset(record)
 
 
 def _vehicle_records(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -116,6 +122,24 @@ def _vehicle_records(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
             break
         selected.append(record)
     return selected
+
+
+def _pair_vehicle_records(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Combine each personal owner row with its following vehicle row."""
+    paired = []
+    index = 0
+    while index < len(records):
+        current = records[index]
+        if (_is_owner_record(current) and index + 1 < len(records)
+                and not _is_owner_record(records[index + 1])):
+            combined = dict(current)
+            combined.update(records[index + 1])
+            paired.append(combined)
+            index += 2
+        else:
+            paired.append(current)
+            index += 1
+    return paired
 
 
 def format_tnkb_sections(fields: Any) -> list[str]:
@@ -129,12 +153,9 @@ def format_tnkb_sections(fields: Any) -> list[str]:
         if not records:
             return ["*DATA KENDARAAN*\n\nData kendaraan belum tersedia."]
 
-        first = _vehicle_block(records[0])
+        first = _vehicle_blocks([records[0]])
         if len(records) > 1:
-            loop = "\n\n".join(
-                _vehicle_block(record)
-                for record in records[1:]
-            )
+            loop = _vehicle_blocks(_pair_vehicle_records(records[1:]))
             first = f"{first}\n\n*DAFTAR KENDARAAN*\n\n{loop}"
         return [f"*DATA KENDARAAN*\n\n{first}"]
 
