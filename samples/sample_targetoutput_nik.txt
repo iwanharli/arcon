@@ -1,0 +1,332 @@
+🔎 *HASIL PENCARIAN DATA*
+
+━━━━━━━━━━━━━━━━━━
+🪪 *INFORMASI KEPENDUDUKAN*
+━━━━━━━━━━━━━━━━━━
+
+👤 *Identitas*
+
+Nama Lengkap: *{{NAMA_LENGKAP}}*
+NIK: `{{NIK}}`
+No. KK: `{{NOMOR_KK}}`
+Jenis Kelamin: {{JENIS_KELAMIN}}
+
+Tempat Lahir: {{TEMPAT_LAHIR}}
+Tanggal Lahir: {{TANGGAL_LAHIR}}
+Status Kawin: {{STATUS_KAWIN}}
+Status Hubungan: {{STATUS_HUBUNGAN}}
+
+🏠 *Alamat*
+
+{{ALAMAT_LENGKAP}}
+
+RT/RW: {{RT}} / {{RW}}
+Dusun: {{DUSUN}}
+Kelurahan: {{KELURAHAN}}
+Kecamatan: {{KECAMATAN}}
+Kabupaten: {{KABUPATEN}}
+Provinsi: {{PROVINSI}}
+Kode Pos: {{KODE_POS}}
+
+🗺️ *Google Maps*
+{{URL_GOOGLE_MAPS}}
+
+📍 *Kode Wilayah*
+
+Provinsi: `{{KODE_PROVINSI}}`
+Kabupaten: `{{KODE_KABUPATEN}}`
+Kecamatan: `{{KODE_KECAMATAN}}`
+Kelurahan: `{{KODE_KELURAHAN}}`
+
+👨 *Data Ayah*
+
+Nama: {{NAMA_AYAH}}
+NIK: `{{NIK_AYAH}}`
+
+👩 *Data Ibu*
+
+Nama: {{NAMA_IBU}}
+NIK: `{{NIK_IBU}}`
+
+📋 *Informasi Lain*
+
+Pendidikan: {{PENDIDIKAN}}
+Pekerjaan: {{PEKERJAAN}}
+Gol. Darah: {{GOLONGAN_DARAH}}
+Disabilitas: {{STATUS_DISABILITAS}}
+
+📜 *Data Akta*
+
+No. Akta Lahir: {{NO_AKTA_LAHIR}}
+No. Akta Kawin: {{NO_AKTA_KAWIN}}
+Tgl. Kawin: {{TANGGAL_KAWIN}}
+No. Akta Cerai: {{NO_AKTA_CERAI}}
+Tgl. Cerai: {{TANGGAL_CERAI}}
+
+━━━━━━━━━━━━━━━━━━
+👨‍👩‍👧‍👦 *ANGGOTA KELUARGA*
+━━━━━━━━━━━━━━━━━━
+
+No. KK: `{{NOMOR_KK_KELUARGA}}`
+
+👤 *1. {{NAMA_ANGGOTA_1}}*
+
+NIK: `{{NIK_ANGGOTA_1}}`
+Jenis Kelamin: {{JENIS_KELAMIN_ANGGOTA_1}}
+Lahir: {{TEMPAT_LAHIR_ANGGOTA_1}}, {{TANGGAL_LAHIR_ANGGOTA_1}}
+Hubungan: {{STATUS_HUBUNGAN_ANGGOTA_1}}
+
+Ayah: {{AYAH_ANGGOTA_1}}
+Ibu: {{IBU_ANGGOTA_1}}
+Pekerjaan: {{PEKERJAAN_ANGGOTA_1}}
+Pendidikan: {{PENDIDIKAN_ANGGOTA_1}}
+No. HP: {{NO_HP_ANGGOTA_1}}
+
+👤 *2. {{NAMA_ANGGOTA_2}}*
+
+NIK: `{{NIK_ANGGOTA_2}}`
+Jenis Kelamin: {{JENIS_KELAMIN_ANGGOTA_2}}
+Lahir: {{TEMPAT_LAHIR_ANGGOTA_2}}, {{TANGGAL_LAHIR_ANGGOTA_2}}
+Hubungan: {{STATUS_HUBUNGAN_ANGGOTA_2}}
+
+Ayah: {{AYAH_ANGGOTA_2}}
+Ibu: {{IBU_ANGGOTA_2}}
+Pekerjaan: {{PEKERJAAN_ANGGOTA_2}}
+Pendidikan: {{PENDIDIKAN_ANGGOTA_2}}
+No. HP: {{NO_HP_ANGGOTA_2}}
+
+👤 *3. {{NAMA_ANGGOTA_3}}*
+
+NIK: `{{NIK_ANGGOTA_3}}`
+Jenis Kelamin: {{JENIS_KELAMIN_ANGGOTA_3}}
+Lahir: {{TEMPAT_LAHIR_ANGGOTA_3}}, {{TANGGAL_LAHIR_ANGGOTA_3}}
+Hubungan: {{STATUS_HUBUNGAN_ANGGOTA_3}}
+
+Ayah: {{AYAH_ANGGOTA_3}}
+Ibu: {{IBU_ANGGOTA_3}}
+Pekerjaan: {{PEKERJAAN_ANGGOTA_3}}
+Pendidikan: {{PENDIDIKAN_ANGGOTA_3}}
+No. HP: {{NO_HP_ANGGOTA_3}}
+
+👤 *4. {{NAMA_ANGGOTA_4}}*
+
+NIK: `{{NIK_ANGGOTA_4}}`
+Jenis Kelamin: {{JENIS_KELAMIN_ANGGOTA_4}}
+Lahir: {{TEMPAT_LAHIR_ANGGOTA_4}}, {{TANGGAL_LAHIR_ANGGOTA_4}}
+Hubungan: {{STATUS_HUBUNGAN_ANGGOTA_4}}
+
+Ayah: {{AYAH_ANGGOTA_4}}
+Ibu: {{IBU_ANGGOTA_4}}
+Pekerjaan: {{PEKERJAAN_ANGGOTA_4}}
+Pendidikan: {{PENDIDIKAN_ANGGOTA_4}}
+No. HP: {{NO_HP_ANGGOTA_4}}
+
+👤 *5. {{NAMA_ANGGOTA_5}}*
+
+NIK: `{{NIK_ANGGOTA_5}}`
+Jenis Kelamin: {{JENIS_KELAMIN_ANGGOTA_5}}
+Lahir: {{TEMPAT_LAHIR_ANGGOTA_5}}, {{TANGGAL_LAHIR_ANGGOTA_5}}
+Hubungan: {{STATUS_HUBUNGAN_ANGGOTA_5}}
+
+Ayah: {{AYAH_ANGGOTA_5}}
+Ibu: {{IBU_ANGGOTA_5}}
+Pekerjaan: {{PEKERJAAN_ANGGOTA_5}}
+Pendidikan: {{PENDIDIKAN_ANGGOTA_5}}
+No. HP: {{NO_HP_ANGGOTA_5}}
+
+━━━━━━━━━━━━━━━━━━
+📶 *DATA MSISDN*
+━━━━━━━━━━━━━━━━━━
+
+🪪 NIK: `{{NIK}}`
+
+📱 *Nomor 1*
+
+Nomor: `{{MSISDN_1}}`
+Provider: {{PROVIDER_1}}
+Terakhir Terdaftar: {{TERAKHIR_TERDAFTAR_1}}
+
+WhatsApp: {{STATUS_WHATSAPP_1}}
+{{KETERANGAN_WHATSAPP_1}}
+
+Dicek: {{TANGGAL_PENGECEKAN_1}} {{WAKTU_PENGECEKAN_1}} WIB
+🔗 {{URL_WHATSAPP_1}}
+
+📱 *Nomor 2*
+
+Nomor: `{{MSISDN_2}}`
+Provider: {{PROVIDER_2}}
+Terakhir Terdaftar: {{TERAKHIR_TERDAFTAR_2}}
+
+WhatsApp: {{STATUS_WHATSAPP_2}}
+{{KETERANGAN_WHATSAPP_2}}
+
+Dicek: {{TANGGAL_PENGECEKAN_2}} {{WAKTU_PENGECEKAN_2}} WIB
+🔗 {{URL_WHATSAPP_2}}
+
+📱 *Nomor 3*
+
+Nomor: `{{MSISDN_3}}`
+Provider: {{PROVIDER_3}}
+Terakhir Terdaftar: {{TERAKHIR_TERDAFTAR_3}}
+
+WhatsApp: {{STATUS_WHATSAPP_3}}
+{{KETERANGAN_WHATSAPP_3}}
+
+Dicek: {{TANGGAL_PENGECEKAN_3}} {{WAKTU_PENGECEKAN_3}} WIB
+🔗 {{URL_WHATSAPP_3}}
+
+━━━━━━━━━━━━━━━━━━
+🚗 *DATA ASET*
+━━━━━━━━━━━━━━━━━━
+
+🚘 *{{NOMOR_POLISI}}*
+
+Pemilik: *{{NAMA_PEMILIK}}*
+
+Merk: {{MERK_KENDARAAN}}
+Tipe: {{TIPE_KENDARAAN}}
+Tahun: {{TAHUN_KENDARAAN}}
+Warna: {{WARNA_KENDARAAN}}
+
+No. Rangka: `{{NO_RANGKA}}`
+No. Mesin: `{{NO_MESIN}}`
+No. BPKB: `{{NO_BPKB}}`
+No. HP: {{NO_HP_PEMILIK}}
+
+🏠 *Alamat*
+{{ALAMAT_PEMILIK}}
+
+━━━━━━━━━━━━━━━━━━
+💰 *DATA BANSOS & EKONOMI*
+━━━━━━━━━━━━━━━━━━
+
+👤 Nama: *{{NAMA_LENGKAP}}*
+
+Desil: {{DESIL}}
+
+🛒 Sembako: {{STATUS_SEMBAKO}}
+Periode: {{PERIODE_SEMBAKO}}
+
+💵 PKH: {{STATUS_PKH}}
+Periode: {{PERIODE_PKH}}
+
+🏥 PBI-JK: {{STATUS_PBI_JK}}
+Periode: {{PERIODE_PBI_JK}}
+
+Status: {{STATUS_BANSOS}}
+Keterangan: {{KETERANGAN_BANSOS}}
+
+━━━━━━━━━━━━━━━━━━
+📋 *DATA IDENTITAS PENDUKUNG*
+━━━━━━━━━━━━━━━━━━
+
+NIK: `{{NIK}}`
+MSISDN: {{MSISDN}}
+Nama: *{{NAMA_LENGKAP}}*
+
+🏠 *Alamat*
+{{ALAMAT_IDENTITAS_PENDUKUNG}}
+
+━━━━━━━━━━━━━━━━━━
+🇮🇩 *DATA WNI*
+━━━━━━━━━━━━━━━━━━
+
+👤 *Identitas*
+
+Nama: *{{NAMA_LENGKAP}}*
+NIK: `{{NIK}}`
+No. KTP: `{{NO_KTP}}`
+No. KK: `{{NOMOR_KK}}`
+
+Tempat Sebelumnya: {{TEMPAT_SEBELUMNYA}}
+Jenis Kelamin: {{JENIS_KELAMIN}}
+Tempat Lahir: {{TEMPAT_LAHIR}}
+Tanggal Lahir: {{TANGGAL_LAHIR}}
+Gol. Darah: {{GOLONGAN_DARAH}}
+Agama: {{AGAMA}}
+Status Kawin: {{STATUS_KAWIN}}
+
+👨‍👩‍👦 *Keluarga*
+
+Status Hubungan: {{STATUS_HUBUNGAN_KELUARGA}}
+Ayah: {{NAMA_AYAH}}
+Ibu: {{NAMA_IBU}}
+
+🎓 *Pendidikan & Pekerjaan*
+
+Pendidikan: {{PENDIDIKAN_AKHIR}}
+Pekerjaan: {{JENIS_PEKERJAAN}}
+
+📜 *Dokumen*
+
+Akta Lahir: {{STATUS_AKTA_LAHIR}}
+Akta Kawin: {{STATUS_AKTA_KAWIN}}
+Akta Cerai: {{STATUS_AKTA_CERAI}}
+
+📍 *Wilayah*
+
+Provinsi: {{PROVINSI}}
+Kabupaten: {{KABUPATEN}}
+Kecamatan: {{KECAMATAN}}
+Kelurahan: {{KELURAHAN}}
+
+📋 *Administrasi*
+
+Kelas Fiskal: {{KELAS_FISKAL}}
+Disabilitas: {{STATUS_DISABILITAS}}
+Tgl. Ubah: {{TANGGAL_UBAH}}
+Isu Pendatang: {{ISU_PENDATANG}}
+Jumlah KTP: {{JUMLAH_KTP}}
+Jumlah Biodata: {{JUMLAH_BIODATA}}
+
+━━━━━━━━━━━━━━━━━━
+🧾 *DATA WAJIB PAJAK*
+━━━━━━━━━━━━━━━━━━
+
+👤 *Identitas Wajib Pajak*
+
+Nama: {{NAMA_WAJIB_PAJAK}}
+NPWP: `{{NPWP}}`
+Tipe: {{TIPE_WAJIB_PAJAK}}
+
+🏠 *Alamat*
+{{ALAMAT_WAJIB_PAJAK}}
+
+📋 *Data Aktivitas*
+
+Nama: {{NAMA_SENSOR}}
+Nama Aktivitas: {{NAMA_AKTIVITAS}}
+Jenis Kelamin: {{JENIS_KELAMIN_WP}}
+Tanggal Lahir: {{TANGGAL_LAHIR_WP}}
+Alamat: {{ALAMAT_WP}}
+Kode Pos: {{KODE_POS_WP}}
+
+━━━━━━━━━━━━━━━━━━
+🏛️ *DATA PERPAJAKAN*
+━━━━━━━━━━━━━━━━━━
+
+🏷️ *Klasifikasi*
+
+Jenis Wajib Pajak: {{JENIS_WAJIB_PAJAK}}
+Kode KLU: `{{KODE_KLU}}`
+
+Keterangan KLU:
+{{KETERANGAN_KLU}}
+
+🏢 *Registrasi*
+
+Tanggal Registrasi: {{TANGGAL_REGISTRASI_PAJAK}}
+Kantor Pajak: {{KANTOR_PAJAK}}
+Wilayah Pajak: {{WILAYAH_PAJAK}}
+Tempat Kerja: {{TEMPAT_KERJA}}
+
+📊 *Status Kepatuhan*
+
+Profil Risiko: {{PROFIL_RISIKO}}
+Dalam Penagihan: {{STATUS_PENAGIHAN}}
+Status Wajib Pajak: {{STATUS_WAJIB_PAJAK}}
+
+━━━━━━━━━━━━━━━━━━
+✅ *AKHIR HASIL*
+━━━━━━━━━━━━━━━━━━

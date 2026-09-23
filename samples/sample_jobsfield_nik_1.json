@@ -1,0 +1,275 @@
+[
+  {
+    "nik": "8171020507970006",
+    "dusun": "N/A",
+    "rt/rw": "002 / 003",
+    "alamat": "JL.JEND.SUDIRMAN GG FLAMBOYAN NO 38 RT 2 RW 3 BATU MERAH SIRIMAU KOTA AMBON MALUKU",
+    "kode_pos": "97128",
+    "nomor_kk": "8171022802170015",
+    "provinsi": "MALUKU",
+    "kabupaten": "KOTA AMBON",
+    "kecamatan": "SIRIMAU",
+    "kelurahan": "BATU MERAH",
+    "google_maps": "https://www.google.com/maps/place/jl.jend.sudirman+gg+flamboyan+no+38+rt+2+rw+3+batu+merah+sirimau+kota+ambon+maluku,+batu+merah,+sirimau,+kota+ambon,+maluku",
+    "nama_lengkap": "MOCH NUR KHISBULLAH SULAIMAN",
+    "status_kawin": "BELUM KAWIN",
+    "tempat_lahir": "SUKOREJO",
+    "jenis_kelamin": "LAKI-LAKI",
+    "nomor_wilayah": "PROV:81 KAB:71 KEC:02 KEL:2003",
+    "tanggal_lahir": "1997-07-05",
+    "status_hubungan": "ANAK"
+  },
+  { "nik": "8171022012550002", "nama": "SULAIMAN ALI" },
+  { "nik": "8171025508770010", "nama": "KHUSNUL KHOTIMAH" },
+  {
+    "nama": "LAINNYA",
+    "pekerjaan": "BELUM/TIDAK BEKERJA",
+    "gol._darah": "-",
+    "pendidikan": "SLTA/SEDERAJAT",
+    "penyandang_cacat": "TIDAK ADA/TIDAK MENYANDANG CACAT"
+  },
+  {
+    "nama": "AKTA",
+    "tgl_cerai": "N/A",
+    "tgl_kawin": "N/A",
+    "no._akta_cerai": "N/A",
+    "no._akta_kawin": "N/A",
+    "no._akta_lahir": "N/A"
+  },
+  {
+    "wni": "MOCH NUR KHISBULLAH SULAIMAN",
+    "nama": "NAMA LENGKAP",
+    "wni_c": "MOCH NUR KHISBULLAH SULAIMAN",
+    "dukcapil_2": "MOCH NUR KHISBULLAH",
+    "dukcapil_3": "MOCH NUR KHISBULLAH SULAIMAN",
+    "dukcapil_4": "MOCH NUR KHISBULLAH SULAIMAN"
+  },
+  {
+    "wni": "8171023006090065",
+    "nama": "NOMOR KK",
+    "wni_c": "8171023006090065",
+    "dukcapil_2": "8171023006090065",
+    "dukcapil_4": "8171022802170015"
+  },
+  {
+    "wni": "SUKOREJO",
+    "nama": "TEMPAT LAHIR",
+    "wni_c": "SUKOREJO",
+    "dukcapil_2": "AMBON",
+    "dukcapil_4": "SUKOREJO"
+  },
+  {
+    "wni": "BELUM KAWIN",
+    "nama": "STATUS KAWIN",
+    "wni_c": "BELUM KAWIN",
+    "dukcapil_2": "B",
+    "dukcapil_4": "BELUM KAWIN"
+  },
+  {
+    "nama": "ALAMAT",
+    "wni_c": "JL.JEND.SUDIRMAN GG FLAMBOYAN N0 38",
+    "dukcapil_2": "RUKO BATUMERAH",
+    "dukcapil_3": "JL.JEND.SUDIRMAN GG FLAMBOYAN NO 38 RT 2 RW 3 BATU MERAH SIRIMAU KOTA AMBON MALUKU",
+    "dukcapil_4": "JL.JEND.SUDIRMAN GG FLAMBOYAN NO 38"
+  },
+  { "nama": "KABUPATEN", "wni_c": "AMBON", "dukcapil_4": "KOTA AMBON" },
+  {
+    "wni": "PELAJAR/MAHASISWA",
+    "nama": "PEKERJAAN",
+    "wni_c": "PELAJAR/MAHASISWA",
+    "dukcapil_2": "0",
+    "dukcapil_4": "BELUM/TIDAK BEKERJA"
+  },
+  { "nomor_kk": "8171022802170015" },
+  {
+    "ibu": "JAINAB TAENDU",
+    "nik": "8171022012550002",
+    "ayah": "LA ANE",
+    "nama": "SULAIMAN ALI",
+    "no_hp": "N/A",
+    "pekerjaan": "USTADZ/MUBALIGH",
+    "pendidikan": "SLTA/SEDERAJAT",
+    "tempat_lahir": "AMBON",
+    "jenis_kelamin": "LAKI-LAKI",
+    "tanggal_lahir": "1955-12-20",
+    "status_hubungan": "KEPALA KELUARGA"
+  },
+  {
+    "ibu": "KHUSNUL KHOTIMAH (8171025508770010)",
+    "nik": "8171020605010001",
+    "ayah": "FATKHUR ROKHMAN",
+    "no_hp": "N/A",
+    "pekerjaan": "PELAJAR/MAHASISWA",
+    "pendidikan": "SLTA/SEDERAJAT",
+    "tempat_lahir": "SUKOREJO",
+    "jenis_kelamin": "LAKI-LAKI",
+    "tanggal_lahir": "2001-05-06",
+    "status_hubungan": "ANAK"
+  },
+  {
+    "ibu": "NUR RIYATIM",
+    "nik": "8171025508770010",
+    "ayah": "ANSORI",
+    "no_hp": "N/A",
+    "pekerjaan": "MENGURUS RUMAH TANGGA",
+    "pendidikan": "SLTA/SEDERAJAT",
+    "tempat_lahir": "SIDOARJO",
+    "jenis_kelamin": "PEREMPUAN",
+    "tanggal_lahir": "1977-08-15",
+    "status_hubungan": "ISTRI"
+  },
+  {
+    "ibu": "WA ODE MURNIATI (8109045211810001)",
+    "nik": "8109042004010003",
+    "ayah": "LA ISMAIL (8109041404750003)",
+    "no_hp": "N/A",
+    "pekerjaan": "PELAJAR/MAHASISWA",
+    "pendidikan": "SLTA/SEDERAJAT",
+    "tempat_lahir": "PASIR PUTIH",
+    "jenis_kelamin": "LAKI-LAKI",
+    "tanggal_lahir": "2000-01-20",
+    "status_hubungan": "FAMILI LAIN"
+  },
+  {
+    "ibu": "KHUSNUL KHOTIMAH (8171025508770010)",
+    "nik": "8171026507100004",
+    "ayah": "SULAIMAN ALI (8171022012550002)",
+    "no_hp": "N/A",
+    "pekerjaan": "PELAJAR/MAHASISWA",
+    "pendidikan": "BELUM TAMAT SD/SEDERAJAT",
+    "tempat_lahir": "AMBON",
+    "jenis_kelamin": "PEREMPUAN",
+    "tanggal_lahir": "2010-07-25",
+    "status_hubungan": "ANAK"
+  },
+  {
+    "ibu": "KHUSNUL KHOTIMAH (8171025508770010)",
+    "nik": "8171020507970006",
+    "ayah": "SULAIMAN ALI (8171022012550002)",
+    "no_hp": "N/A",
+    "pekerjaan": "BELUM/TIDAK BEKERJA",
+    "pendidikan": "SLTA/SEDERAJAT",
+    "tempat_lahir": "SUKOREJO",
+    "jenis_kelamin": "LAKI-LAKI",
+    "tanggal_lahir": "1997-07-05",
+    "status_hubungan": "ANAK"
+  },
+  {
+    "ibu": "MARYAM TERAUNA ALI SINA",
+    "nik": "8171022708940006",
+    "ayah": "SULAIMAN ALI (8171022012550002)",
+    "no_hp": "N/A",
+    "pekerjaan": "BELUM/TIDAK BEKERJA",
+    "pendidikan": "DIPLOMA IV/STRATA I",
+    "tempat_lahir": "AMBON",
+    "jenis_kelamin": "LAKI-LAKI",
+    "tanggal_lahir": "1994-08-27",
+    "status_hubungan": "ANAK"
+  },
+  {
+    "ibu": "MARIYAM",
+    "nik": "3573014509820011",
+    "ayah": "SULAIMAN ALI",
+    "no_hp": "N/A",
+    "pekerjaan": "DOSEN",
+    "pendidikan": "STRATA-II",
+    "tempat_lahir": "AMBON",
+    "jenis_kelamin": "PEREMPUAN",
+    "tanggal_lahir": "1982-09-05",
+    "status_hubungan": "FAMILI LAIN"
+  },
+  {
+    "ibu": "KHUSNUL KHOTIMAH (8171025508770010)",
+    "nik": "8171022708940001",
+    "ayah": "SULAIMAN ALI (8171022012550002)",
+    "no_hp": "N/A",
+    "pekerjaan": "PELAJAR/MAHASISWA",
+    "pendidikan": "SLTA/SEDERAJAT",
+    "tempat_lahir": "AMBON",
+    "jenis_kelamin": "LAKI-LAKI",
+    "tanggal_lahir": "1994-08-27",
+    "status_hubungan": "ANAK"
+  },
+  {
+    "ibu": "KHUSNUL KHOTIMAH (8171025508770010)",
+    "nik": "8171026111920001",
+    "ayah": "SULAIMAN ALI (8171022012550002)",
+    "no_hp": "N/A",
+    "pekerjaan": "BELUM/TIDAK BEKERJA",
+    "pendidikan": "SLTA/SEDERAJAT",
+    "tempat_lahir": "AMBON",
+    "jenis_kelamin": "PEREMPUAN",
+    "tanggal_lahir": "1992-11-21",
+    "status_hubungan": "ANAK"
+  },
+  {
+    "nik": "8171020507970006",
+    "nomor": "628121740464",
+    "provider": "TELKOMSEL",
+    "whatsapp": "✅ REGISTERED",
+    "cek_update_manual": "(https://wa.me/628121740464)",
+    "terakhir_terdaftar": "MINGGU, TANGGAL 05-11-2017"
+  },
+  {
+    "nik": "8171020507970006",
+    "nomor": "6285707866338",
+    "provider": "INDOSAT",
+    "whatsapp": "❌ UNREGISTERED",
+    "cek_manual": "(https://wa.me/6285707866338)",
+    "terakhir_terdaftar": "MINGGU, TANGGAL 05-11-2017"
+  },
+  {
+    "nik": "8171020507970006",
+    "nomor": "000000000",
+    "provider": "N/A",
+    "whatsapp": "❌ UNREGISTERED",
+    "cek_manual": "(https://wa.me/6200000000)",
+    "terakhir_terdaftar": "N/A"
+  },
+  {
+    "pkh": "TIDAK (PERIODE: -)",
+    "nama": "MOCH NUR KHISBULLAH SULAIMAN",
+    "desil": "6-10 (MENENGAH – EKONOMI PALING ATAS)",
+    "pbi-jk": "TIDAK (PERIODE: -)",
+    "status": "SEMBAKO TIDAK | PKH TIDAK | PBI-JK TIDAK",
+    "sembako": "TIDAK (PERIODE: -)",
+    "keterangan": "-"
+  },
+  {
+    "nama": "ANALISA DESIL 6–10:",
+    "umumnya": "",
+    "pengertian": "KELOMPOK KESEJAHTERAAN MENENGAH."
+  },
+  {
+    "nama": "BUKAN PRIORITAS UTAMA SEMBAKO.",
+    "catatan": "DESIL 6 BUKAN BERARTI TIDAK BOLEH MENERIMA BANTUAN PEMERINTAH SAMA SEKALI."
+  },
+  {
+    "nik": "8171020507970006",
+    "agama": "ISLAM",
+    "no._kk": "8171023006090065",
+    "nik_ibu": "8171025508770010",
+    "nama_ibu": "KHUSNUL KHOTIMAH",
+    "nik_ayah": "8171022012550002",
+    "tgl_ubah": "06-07-2015",
+    "nama_ayah": "SULAIMAN ALI",
+    "akta_cerai": "TIDAK ADA/BELUM MEMILIKI AKTA PERCERAIAN",
+    "akta_kawin": "BELUM DAPAT DIPASTIKAN",
+    "akta_lahir": "YA, DAPAT DITUNJUKKAN",
+    "kelas_fiskal": "1",
+    "nama_lengkap": "MOCH NUR KHISBULLAH SULAIMAN",
+    "no._provinsi": "MALUKU",
+    "status_kawin": "BELUM KAWIN",
+    "tempat_lahir": "SUKOREJO",
+    "jenis_kelamin": "LAKI-LAKI",
+    "no._kabupaten": "AMBON",
+    "no._kecamatan": "SIRIMAU",
+    "no._kelurahan": "BATU MERAH",
+    "tanggal_lahir": "05-07-1997",
+    "golongan_darah": "TIDAK DIKETAHUI / TIDAK ADA DATA",
+    "jenis_pekerjaan": "PELAJAR/MAHASISWA",
+    "pendidikan_akhir": "SLTA/SEDERAJAT",
+    "penyandang_cacat": "TIDAK ADA/TIDAK MENYANDANG CACAT",
+    "status_hubungan_keluarga": "ANAK"
+  }
+]

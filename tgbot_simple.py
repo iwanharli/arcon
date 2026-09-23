@@ -28,6 +28,7 @@ from telethon import Button, TelegramClient, events
 import config
 import db
 import tgbot_reply_formatter
+from tg_formatter import tnkb as tnkb_formatter
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("artemis.tgbot")
@@ -371,7 +372,7 @@ def format_hasil(hasil: dict, judul: str, key: str | None = None) -> str:
     if status == "found":
         f = hasil.get("fields")
         if key == "tnkb":
-            return tgbot_reply_formatter.format_tnkb(f)
+            return tnkb_formatter.format_tnkb(f)
         if isinstance(f, list):
             if key == "nikbyphone":
                 return tgbot_reply_formatter.format_nikbyphone(f)
@@ -764,7 +765,7 @@ async def main() -> None:
             if not bagian:
                 bagian = potong_pesan(format_hasil(hasil, judul))
         elif tnkb_found:
-            bagian = tgbot_reply_formatter.format_tnkb_messages(hasil.get("fields"))
+            bagian = tnkb_formatter.format_tnkb_messages(hasil.get("fields"))
             if not bagian:
                 bagian = potong_pesan(format_hasil(hasil, judul))
         else:

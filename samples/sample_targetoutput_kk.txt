@@ -1,0 +1,162 @@
+🔎 *HASIL PENCARIAN DATA*
+
+━━━━━━━━━━━━━━━━━━
+👨‍👩‍👧‍👦 *INFORMASI KARTU KELUARGA*
+━━━━━━━━━━━━━━━━━━
+
+👤 *Identitas*
+
+Nama Lengkap: *{{NAMA_LENGKAP}}*
+NIK: `{{NIK}}`
+No. KK: `{{NOMOR_KK}}`
+Jenis Kelamin: {{JENIS_KELAMIN}}
+
+Tempat Lahir: {{TEMPAT_LAHIR}}
+Tanggal Lahir: {{TANGGAL_LAHIR}}
+Status Kawin: {{STATUS_KAWIN}}
+Status Hubungan: {{STATUS_HUBUNGAN}}
+
+🏠 *Alamat*
+
+{{ALAMAT_LENGKAP}}
+
+RT/RW: {{RT}} / {{RW}}
+Dusun: {{DUSUN}}
+Desa/Kelurahan: {{KELURAHAN}}
+Kecamatan: {{KECAMATAN}}
+Kabupaten/Kota: {{KABUPATEN}}
+Provinsi: {{PROVINSI}}
+Kode Pos: {{KODE_POS}}
+
+🗺️ *Google Maps*
+{{URL_GOOGLE_MAPS}}
+
+📍 *Kode Wilayah*
+
+Provinsi: `{{KODE_PROVINSI}}`
+Kabupaten/Kota: `{{KODE_KABUPATEN}}`
+Kecamatan: `{{KODE_KECAMATAN}}`
+Desa/Kelurahan: `{{KODE_KELURAHAN}}`
+
+👨 *Data Ayah*
+
+Nama: {{NAMA_AYAH}}
+NIK: `{{NIK_AYAH}}`
+
+👩 *Data Ibu*
+
+Nama: {{NAMA_IBU}}
+NIK: `{{NIK_IBU}}`
+
+📋 *Informasi Lain*
+
+Pendidikan: {{PENDIDIKAN}}
+Pekerjaan: {{PEKERJAAN}}
+Gol. Darah: {{GOLONGAN_DARAH}}
+Disabilitas: {{STATUS_DISABILITAS}}
+
+📜 *Data Akta*
+
+No. Akta Lahir: {{NO_AKTA_LAHIR}}
+No. Akta Kawin: {{NO_AKTA_KAWIN}}
+Tgl. Kawin: {{TANGGAL_KAWIN}}
+No. Akta Cerai: {{NO_AKTA_CERAI}}
+Tgl. Cerai: {{TANGGAL_CERAI}}
+
+━━━━━━━━━━━━━━━━━━
+👥 *ANGGOTA KELUARGA*
+━━━━━━━━━━━━━━━━━━
+
+👤 *1. {{NAMA_ANGGOTA_1}}*
+
+NIK: `{{NIK_ANGGOTA_1}}`
+No. KK: `{{NOMOR_KK_ANGGOTA_1}}`
+Jenis Kelamin: {{JENIS_KELAMIN_ANGGOTA_1}}
+Lahir: {{TEMPAT_LAHIR_ANGGOTA_1}}, {{TANGGAL_LAHIR_ANGGOTA_1}}
+Status Kawin: {{STATUS_KAWIN_ANGGOTA_1}}
+Hubungan: {{STATUS_HUBUNGAN_ANGGOTA_1}}
+
+🏠 *Domisili*
+
+Alamat: {{ALAMAT_ANGGOTA_1}}
+RT/RW: {{RT_ANGGOTA_1}} / {{RW_ANGGOTA_1}}
+Desa/Kelurahan: {{KELURAHAN_ANGGOTA_1}}
+Kecamatan: {{KECAMATAN_ANGGOTA_1}}
+Kabupaten/Kota: {{KABUPATEN_ANGGOTA_1}}
+Provinsi: {{PROVINSI_ANGGOTA_1}}
+Kode Pos: {{KODE_POS_ANGGOTA_1}}
+
+👨 Ayah: {{NAMA_AYAH_ANGGOTA_1}}
+NIK Ayah: `{{NIK_AYAH_ANGGOTA_1}}`
+
+👩 Ibu: {{NAMA_IBU_ANGGOTA_1}}
+NIK Ibu: `{{NIK_IBU_ANGGOTA_1}}`
+
+┄┄┄┄┄┄┄┄┄┄
+
+👤 *2. {{NAMA_ANGGOTA_2}}*
+
+NIK: `{{NIK_ANGGOTA_2}}`
+No. KK: `{{NOMOR_KK_ANGGOTA_2}}`
+Jenis Kelamin: {{JENIS_KELAMIN_ANGGOTA_2}}
+Lahir: {{TEMPAT_LAHIR_ANGGOTA_2}}, {{TANGGAL_LAHIR_ANGGOTA_2}}
+Status Kawin: {{STATUS_KAWIN_ANGGOTA_2}}
+Hubungan: {{STATUS_HUBUNGAN_ANGGOTA_2}}
+
+🏠 *Domisili*
+
+Alamat: {{ALAMAT_ANGGOTA_2}}
+RT/RW: {{RT_ANGGOTA_2}} / {{RW_ANGGOTA_2}}
+Desa/Kelurahan: {{KELURAHAN_ANGGOTA_2}}
+Kecamatan: {{KECAMATAN_ANGGOTA_2}}
+Kabupaten/Kota: {{KABUPATEN_ANGGOTA_2}}
+Provinsi: {{PROVINSI_ANGGOTA_2}}
+Kode Pos: {{KODE_POS_ANGGOTA_2}}
+
+👨 Ayah: {{NAMA_AYAH_ANGGOTA_2}}
+NIK Ayah: `{{NIK_AYAH_ANGGOTA_2}}`
+
+👩 Ibu: {{NAMA_IBU_ANGGOTA_2}}
+NIK Ibu: `{{NIK_IBU_ANGGOTA_2}}`
+
+┄┄┄┄┄┄┄┄┄┄
+
+👤 *3. {{NAMA_ANGGOTA_3}}*
+
+NIK: `{{NIK_ANGGOTA_3}}`
+No. KK: `{{NOMOR_KK_ANGGOTA_3}}`
+Jenis Kelamin: {{JENIS_KELAMIN_ANGGOTA_3}}
+Lahir: {{TEMPAT_LAHIR_ANGGOTA_3}}, {{TANGGAL_LAHIR_ANGGOTA_3}}
+Status Kawin: {{STATUS_KAWIN_ANGGOTA_3}}
+Hubungan: {{STATUS_HUBUNGAN_ANGGOTA_3}}
+
+🏠 *Domisili*
+
+Alamat: {{ALAMAT_ANGGOTA_3}}
+RT/RW: {{RT_ANGGOTA_3}} / {{RW_ANGGOTA_3}}
+Desa/Kelurahan: {{KELURAHAN_ANGGOTA_3}}
+Kecamatan: {{KECAMATAN_ANGGOTA_3}}
+Kabupaten/Kota: {{KABUPATEN_ANGGOTA_3}}
+Provinsi: {{PROVINSI_ANGGOTA_3}}
+Kode Pos: {{KODE_POS_ANGGOTA_3}}
+
+👨 Ayah: {{NAMA_AYAH_ANGGOTA_3}}
+NIK Ayah: `{{NIK_AYAH_ANGGOTA_3}}`
+
+👩 Ibu: {{NAMA_IBU_ANGGOTA_3}}
+NIK Ibu: `{{NIK_IBU_ANGGOTA_3}}`
+
+━━━━━━━━━━━━━━━━━━
+📊 *RINGKASAN KELUARGA*
+━━━━━━━━━━━━━━━━━━
+
+No. KK: `{{NOMOR_KK}}`
+Kepala Keluarga: *{{NAMA_KEPALA_KELUARGA}}*
+Jumlah Anggota: {{JUMLAH_ANGGOTA_KELUARGA}}
+
+📍 {{KELURAHAN}}, {{KECAMATAN}}
+{{KABUPATEN}}, {{PROVINSI}}
+
+━━━━━━━━━━━━━━━━━━
+✅ *AKHIR HASIL*
+━━━━━━━━━━━━━━━━━━
