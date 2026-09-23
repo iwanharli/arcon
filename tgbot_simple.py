@@ -44,6 +44,7 @@ KATALOG = [
     ("nikbyphone", "📱", "NIK dari Nomor HP", "nomor HP — contoh 081234567890", False),
     ("kk",         "👨‍👩‍👧", "Kartu Keluarga",   "No. KK 16 digit", False),
     ("nik",        "🆔", "Data NIK",           "NIK 16 digit", False),
+    ("tnkb",       "🚗", "Data Kendaraan",     "nomor polisi — contoh B1234XYZ", False),
     ("track",      "🛰️", "Lacak Nomor HP",     "nomor HP — contoh 081234567890", False),
     ("fr",         "🧑‍💻", "Face Recognition", None, True),
 ]
@@ -369,6 +370,8 @@ def format_hasil(hasil: dict, judul: str, key: str | None = None) -> str:
                     "Silakan coba lagi besok.")
     if status == "found":
         f = hasil.get("fields")
+        if key == "tnkb":
+            return tgbot_reply_formatter.format_tnkb(f)
         if isinstance(f, list):
             if key == "nikbyphone":
                 return tgbot_reply_formatter.format_nikbyphone(f)
@@ -743,6 +746,7 @@ async def main() -> None:
         nik_found = key == "nik" and hasil.get("status") == "found"
         kk_found = key == "kk" and hasil.get("status") == "found"
         track_found = key == "track" and hasil.get("status") == "found"
+        tnkb_found = key == "tnkb" and hasil.get("status") == "found"
         if nikbyphone_found:
             bagian = tgbot_reply_formatter.format_nikbyphone_messages(hasil.get("fields"))
             if not bagian:
@@ -757,6 +761,10 @@ async def main() -> None:
                 bagian = potong_pesan(format_hasil(hasil, judul))
         elif track_found:
             bagian = tgbot_reply_formatter.format_track_messages(hasil.get("fields"))
+            if not bagian:
+                bagian = potong_pesan(format_hasil(hasil, judul))
+        elif tnkb_found:
+            bagian = tgbot_reply_formatter.format_tnkb_messages(hasil.get("fields"))
             if not bagian:
                 bagian = potong_pesan(format_hasil(hasil, judul))
         else:
