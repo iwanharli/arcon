@@ -1,0 +1,380 @@
+[
+  {
+    "nama": "F-1451-NE",
+    "tipe": "AGYA 10 E M/T",
+    "warna": "MERAH",
+    "alamat": "ALAM TIRTA LESTARI BLOK B4 NO12 RT009 RW014 PAGELARAN CIOMAS KABUPATEN BOGOR",
+    "no_bpkb": "M03447411"
+  },
+  {
+    "nik": "3201292408840002",
+    "nama": "F3961NO",
+    "pemilik": "RIANTO SYARIF HIDAYAT"
+  },
+  {
+    "merk": "HONDA",
+    "tipe": "NC11D1D A/T",
+    "tahun": "2011",
+    "warna": "PUTIH HITAM",
+    "alamat": "ALAM TIRTA LESTARI BLOK B4 NO.12 RT.9/14 KEC.CIOMAS BOGOR",
+    "no_bpkb": "I01320730",
+    "no_mesin": "JF02E1044086",
+    "no_rangka": "MH1JF021XBK044100"
+  },
+  {
+    "nik": "3201292408840002",
+    "nama": "F2588FBX",
+    "pemilik": "RIANTO SYARIF HIDAYAT"
+  },
+  {
+    "merk": "HONDA",
+    "tipe": "D1B02N13L2 AT",
+    "tahun": "2017",
+    "warna": "BIRU PUTIH",
+    "alamat": "ALAM TIRTA LESTARI BLOK B 4 NO 12 RT.09/14 KEL.PAGELARAN KEC.CIOMAS KAB.BOGOR",
+    "no_bpkb": "N06055464",
+    "no_mesin": "JM11E1522665",
+    "no_rangka": "MH1JM1114HK539611"
+  },
+  {
+    "nik": "3201292408840002",
+    "nama": "F3377LR",
+    "pemilik": "RIANTO SYARIF HIDAYAT"
+  },
+  {
+    "merk": "HONDA",
+    "tipe": "NF 11B1D M/T",
+    "tahun": "2009",
+    "warna": "HITAM",
+    "alamat": "ALAM TIRTA LESTARI BLOK B4/12 RT.9/14 PAGELARAN CIOMAS BOGOR",
+    "no_bpkb": "G1204658H",
+    "no_mesin": "JBC1E1464848",
+    "no_rangka": "MH1JBC1149K469224"
+  },
+  {
+    "nik": "3201292408840002",
+    "nama": "F3199FIS",
+    "no_hp": "085697755009",
+    "pemilik": "RIANTO SYARIF HIDAYAT"
+  },
+  {
+    "merk": "HONDA",
+    "tipe": "H1B02N41L0 A/T",
+    "tahun": "2023",
+    "warna": "HITAM",
+    "alamat": "ALAM TIRTA LESTARI BLOK B 4 NO 12 RT 009 RW 014 KEL PAGELARAN KEC CIOMAS KAB BOGOR",
+    "no_bpkb": "U01130762",
+    "no_stnk": "09696290G2023",
+    "no_mesin": "JM82E1923558",
+    "no_rangka": "MH1JM8212PK924106"
+  },
+  {
+    "nik": "3201292408840002",
+    "nama": "F1064MA",
+    "pemilik": "RIANTO SYARIF HIDAYAT"
+  },
+  {
+    "merk": "PROTON",
+    "tipe": "EXORA 1.6L AT (MEDIUM-LINE)",
+    "tahun": "2009",
+    "warna": "HITAM METALIK",
+    "alamat": "ALAM TIRTA LESTARI BLOK B4 NO 12 RT 09/14 PAGELARAN KEC CIOMAS KAB BOGOR",
+    "no_bpkb": "Q02585375",
+    "no_mesin": "54PHQC5914",
+    "no_rangka": "PL1FZ26YRRAF020019"
+  },
+  {
+    "nik": "3201292408840002",
+    "nama": "F1451NE",
+    "pemilik": "RIANTO SYARIF HIDAYAT"
+  },
+  {
+    "merk": "TOYOTA",
+    "tipe": "AGYA 1.0 E M/T",
+    "tahun": "2015",
+    "warna": "MERAH",
+    "alamat": "ALAM TIRTA LESTARI BLOK B4 NO.12 RT.009 RW.014 PAGELARAN CIOMAS KABUPATEN BOGOR",
+    "no_bpkb": "M03447411",
+    "no_mesin": "1KRA244064",
+    "no_rangka": "MHKA4DA2JFJ005150"
+  },
+  {
+    "nik": "3201292408840002",
+    "dusun": "N/A",
+    "rt/rw": "009 / 014",
+    "alamat": "ALAM TIRTA LESTARI BLOK B 4 N0. 12",
+    "kode_pos": "N/A",
+    "nomor_kk": "3201291704090013",
+    "provinsi": "JAWA BARAT",
+    "kabupaten": "BOGOR",
+    "kecamatan": "CIOMAS",
+    "kelurahan": "CIOMAS",
+    "google_maps": "https://www.google.com/maps/place/alam+tirta+lestari+blok+b+4+n0.+12,+ciomas,+ciomas,+bogor,+jawa+barat",
+    "nama_lengkap": "RIANTO SYARIF HIDAYAT",
+    "status_kawin": "KAWIN",
+    "tempat_lahir": "JAKARTA",
+    "jenis_kelamin": "LAKI-LAKI",
+    "nomor_wilayah": "PROV:32 KAB:1 KEC:29 KEL:2005",
+    "tanggal_lahir": "1984-08-24",
+    "status_hubungan": "AKTIF"
+  },
+  {
+    "nik": "N/A",
+    "nama": "M. NAJIB",
+    "bagian": "DATA AYAH"
+  },
+  {
+    "nik": "N/A",
+    "nama": "LILI SRI SUBEKTI",
+    "bagian": "DATA IBU"
+  },
+  {
+    "bagian": "LAINNYA",
+    "pekerjaan": "KARYAWAN SWASTA",
+    "gol._darah": "AB",
+    "pendidikan": "SLTA/SEDERAJAT",
+    "penyandang_cacat": "TIDAK ADA/TIDAK MENYANDANG CACAT"
+  },
+  {
+    "bagian": "AKTA",
+    "tgl_cerai": "N/A",
+    "tgl_kawin": "2008-04-12T00:00:00+00:00",
+    "no._akta_cerai": "N/A",
+    "no._akta_kawin": "596/87/IV/2008",
+    "no._akta_lahir": "N/A"
+  },
+  {
+    "wni": "KAWIN",
+    "wni_c": "KAWIN",
+    "bagian": "STATUS KAWIN",
+    "dukcapil_1": "KAWIN",
+    "dukcapil_2": "S"
+  },
+  {
+    "wni": "KARYAWAN SWASTA",
+    "wni_c": "KARYAWAN SWASTA",
+    "bagian": "PEKERJAAN",
+    "dukcapil_2": "0"
+  },
+  {
+    "nomor_kk": "3201291704090013"
+  },
+  {
+    "ibu": "LILI SRI SUBEKTI",
+    "nik": "3201292408840002",
+    "ayah": "M. NAJIB",
+    "nama": "RIANTO SYARIF HIDAYAT",
+    "no_hp": "N/A",
+    "pekerjaan": "KARYAWAN SWASTA",
+    "pendidikan": "SLTA/SEDERAJAT",
+    "tempat_lahir": "JAKARTA",
+    "jenis_kelamin": "LAKI-LAKI",
+    "tanggal_lahir": "1984-08-24",
+    "status_hubungan": "KEPALA KELUARGA"
+  },
+  {
+    "ibu": "ASMAROH",
+    "nik": "3201294201840002",
+    "ayah": "SYARIFUDIN",
+    "pekerjaan": "MENGURUS RUMAH",
+    "tempat_lahir": "JAKARTA",
+    "jenis_kelamin": "PEREMPUAN",
+    "tanggal_lahir": "1984-01-02",
+    "status_hubungan": "ISTRI"
+  },
+  {
+    "no_hp": "N/A",
+    "bagian": "TANGGA",
+    "pendidikan": "SLTA/SEDERAJAT"
+  },
+  {
+    "ibu": "DEWI ROSALIAH (3201294201840002)",
+    "nik": "3201295703090003",
+    "ayah": "RIANTO SYARIF HIDAYAT (3201292408840002)",
+    "nama": "RAIHANA ZEIMA AZ ZAHRA HIDAYAT",
+    "pekerjaan": "BELUM/TIDAK BEKERJA",
+    "tempat_lahir": "BOGOR",
+    "jenis_kelamin": "PEREMPUAN",
+    "tanggal_lahir": "2009-03-17",
+    "status_hubungan": "ANAK"
+  },
+  {
+    "no_hp": "N/A",
+    "pendidikan": "TIDAK/BELUM SEKOLAH"
+  },
+  {
+    "ibu": "DEWI ROSALIAH (3201294201840002)",
+    "nik": "3201291401130003",
+    "ayah": "RIANTO SYARIF HIDAYAT (3201292408840002)",
+    "nama": "KENZIE FAEYZA HIDAYAT",
+    "pekerjaan": "BELUM/TIDAK BEKERJA",
+    "tempat_lahir": "BOGOR",
+    "jenis_kelamin": "LAKI-LAKI",
+    "tanggal_lahir": "2013-01-14",
+    "status_hubungan": "ANAK"
+  },
+  {
+    "ibu": "DEWI ROSALIAH (3201294201840002)",
+    "nik": "3201291105160004",
+    "ayah": "RIANTO SYARIF HIDAYAT (3201292408840002)",
+    "nama": "XAVIER EL FATIH HIDAYAT",
+    "pekerjaan": "BELUM/TIDAK BEKERJA",
+    "tempat_lahir": "BOGOR",
+    "jenis_kelamin": "LAKI-LAKI",
+    "tanggal_lahir": "2016-05-11",
+    "status_hubungan": "ANAK"
+  },
+  {
+    "anggota": "RIANTO SYARIF HIDAYAT (3201292408840002)"
+  },
+  {
+    "wni_c": "1",
+    "bagian": "JENIS KELAMIN",
+    "anggota": "DEWI ROSALIAH (3201294201840002)",
+    "dukcapil_1": "LAKI-LAKI",
+    "dukcapil_2": "LAKI-LAKI"
+  },
+  {
+    "wni_c": "2",
+    "bagian": "JENIS KELAMIN",
+    "dukcapil_1": "PEREMPUAN",
+    "dukcapil_2": "PEREMPUAN"
+  },
+  {
+    "nik": "3201292408840002",
+    "nomor": "6281517050309",
+    "provider": "INDOSAT",
+    "whatsapp": "❌ UNREGISTERED",
+    "cek_manual": "(https://wa.me/6281517050309)",
+    "terakhir_terdaftar": "KAMIS, TANGGAL 06-03-2025"
+  },
+  {
+    "nik": "3201292408840002",
+    "nomor": "628854076488",
+    "provider": "SMARTFREN",
+    "whatsapp": "❌ UNREGISTERED",
+    "cek_manual": "(https://wa.me/628854076488)",
+    "terakhir_terdaftar": "RABU, TANGGAL 15-01-2025"
+  },
+  {
+    "nik": "3201292408840002",
+    "nomor": "6289527847925",
+    "provider": "TRI",
+    "whatsapp": "❌ UNREGISTERED",
+    "cek_manual": "(https://wa.me/6289527847925)",
+    "terakhir_terdaftar": "SABTU, TANGGAL 04-01-2025"
+  },
+  {
+    "nik": "3201292408840002",
+    "nomor": "6289634872000",
+    "provider": "TRI",
+    "whatsapp": "✅ REGISTERED",
+    "cek_update_manual": "(https://wa.me/6289634872000)",
+    "terakhir_terdaftar": "SABTU, TANGGAL 04-01-2025"
+  },
+  {
+    "nik": "3201292408840002",
+    "nomor": "6285697755009",
+    "provider": "INDOSAT",
+    "whatsapp": "✅ REGISTERED",
+    "cek_update_manual": "(https://wa.me/6285697755009)",
+    "terakhir_terdaftar": "SELASA, TANGGAL 14-01-2020"
+  },
+  {
+    "pkh": "TIDAK (PERIODE: -)",
+    "nama": "RIANTO SYARIF HIDAYAT",
+    "desil": "6-10 (MENENGAH – EKONOMI PALING ATAS)",
+    "bagian": "BANSOS — DB EKONOMI",
+    "pbi-jk": "TIDAK (PERIODE: -)",
+    "status": "SEMBAKO TIDAK | PKH TIDAK | PBI-JK TIDAK",
+    "sembako": "TIDAK (PERIODE: -)",
+    "keterangan": "-"
+  },
+  {
+    "bagian": "ANALISA DESIL 6–10:",
+    "umumnya": "",
+    "pengertian": "KELOMPOK KESEJAHTERAAN MENENGAH."
+  },
+  {
+    "bagian": "BUKAN PRIORITAS UTAMA SEMBAKO.",
+    "catatan": "DESIL 6 BUKAN BERARTI TIDAK BOLEH MENERIMA BANTUAN PEMERINTAH SAMA SEKALI."
+  },
+  {
+    "nik": "3201292408840002",
+    "nama": "RIANTO SYARIF HIDAYAT",
+    "npwp": "32.012.924.0-884.000",
+    "tipe": "PILIH TIPE PERUSAHAAN",
+    "agama": "ISLAM",
+    "alamat": "CIPINANG LONTAR NO.1, JAKARTA TIMUR",
+    "no._kk": "3201291704090013",
+    "nama_ibu": "LILI SRI SUBEKTI",
+    "tgl_ubah": "24-03-2014",
+    "nama_ayah": "M. NAJIB",
+    "tgl_kawin": "12-04-2008",
+    "akta_cerai": "TIDAK ADA/BELUM MEMILIKI AKTA PERCERAIAN",
+    "akta_kawin": "TERCATAT",
+    "akta_lahir": "YA, DAPAT DITUNJUKKAN",
+    "jumlah_ktp": "0",
+    "kelas_fiskal": "1",
+    "nama_lengkap": "RIANTO SYARIF HIDAYAT",
+    "no._provinsi": "JAWA BARAT",
+    "status_kawin": "KAWIN",
+    "tempat_lahir": "JAKARTA",
+    "jenis_kelamin": "LAKI-LAKI",
+    "no._kabupaten": "BOGOR",
+    "no._kecamatan": "CIOMAS",
+    "no._kelurahan": "CIOMAS",
+    "tanggal_lahir": "24-08-1984",
+    "golongan_darah": "AB",
+    "jumlah_biodata": "0",
+    "no._akta_kawin": "596/87/IV/2008",
+    "jenis_pekerjaan": "KARYAWAN SWASTA",
+    "data_wajib_pajak": "",
+    "pendidikan_akhir": "SLTA/SEDERAJAT",
+    "penyandang_cacat": "TIDAK ADA/TIDAK MENYANDANG CACAT",
+    "status_hubungan_keluarga": "KEPALA KELUARGA"
+  },
+  {
+    "nama": "RIXXXX SYXXXX HIXXXXX",
+    "alamat": "CIOMAS,KAB. BOGOR,JAWA BARAT",
+    "kode_klu": "Z5000 (PEGAWAI SWASTA)",
+    "kode_pos": "16610",
+    "kantor_pajak": "KPP PRATAMA JAKARTA PULOGADUNG",
+    "tempat_kerja": "-",
+    "jenis_kelamin": "LAKI-LAKI",
+    "profil_risiko": "HIGH",
+    "tanggal_lahir": "24 AUGUST 1984",
+    "wilayah_pajak": "KANWIL DJP JAKARTA TIMUR",
+    "nama_aktivitas": "RIANTO SYARIF HIDAYAT",
+    "dalam_penagihan": "NO",
+    "data_perpajakan": "",
+    "data_wajib_pajak": "",
+    "status_kepatuhan": "",
+    "jenis_wajib_pajak": "TA001",
+    "status_wajib_pajak": "ACTIVE",
+    "tanggal_registrasi": "2008-12-04T00:00:00+07:00"
+  },
+  {
+    "nik": "3201292408840002",
+    "nama": "RIANTO SYARIF HIDAYAT",
+    "bagian": "DATA PRIBADI",
+    "jenis_kelamin": "L",
+    "tanggal_lahir": "1984-08-24",
+    "umur_sekarang": "42 TAHUN, 1 BULAN, 0 HARI"
+  },
+  {
+    "bagian": "INFORMASI BPJS",
+    "hak_kelas": "KELAS I",
+    "no._kartu": "0001628952186",
+    "jenis_peserta": "PEGAWAI SWASTA",
+    "status_peserta": "AKTIF",
+    "provider/faskes": "KLINIK PELITA SEHAT CIOMAS"
+  },
+  {
+    "tat": "2050-01-01",
+    "tmt": "2015-03-01",
+    "bagian": "PERIODE",
+    "umur_pelayanan": "42 TAHUN, 1 BULAN, 0 HARI",
+    "tgl_cetak_kartu": "2018-12-04"
+  }
+]

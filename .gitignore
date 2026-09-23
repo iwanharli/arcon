@@ -8,7 +8,7 @@
 tests/values.py
 # tests/results/ berisi hasil query data pribadi (kalau dibuat lagi)
 tests/results/
-samples/
+# samples/
 logs/
 # docs/panduan_api_artemis.pdf memuat API key produksi
 docs/panduan_api_artemis.pdf
