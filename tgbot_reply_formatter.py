@@ -55,6 +55,7 @@ _LABELS = {
     "tahun": "Tahun",
     "warna": "Warna",
     "nopol": "No. Polisi",
+    "no_pol": "No. Polisi",
     "nomor_polisi": "No. Polisi",
     "nomor_rangka": "No. Rangka",
     "nomor_mesin": "No. Mesin",
@@ -117,17 +118,18 @@ def _label(key: str) -> str:
 
 
 def _line(key: str, value: Any, *, label: str | None = None, emoji: str | None = None) -> str:
-    prefix = f"{emoji or _EMOJIS.get(key, '')} " if (emoji or _EMOJIS.get(key)) else ""
+    icon = _EMOJIS.get(key, "") if emoji is None else emoji
+    prefix = f"{icon} " if icon else ""
     shown = f"`{_text(value)}`" if key in _CODE_KEYS else _text(value)
     return f"{prefix}{label or _label(key)}: {shown}"
 
 
 def _record_lines(record: Mapping[str, Any], order: list[str] | None = None,
-                  *, skip: set[str] | None = None) -> list[str]:
+                  *, skip: set[str] | None = None, with_icons: bool = True) -> list[str]:
     skip = skip or set()
     keys = order if order is not None else list(record)
     return [
-        _line(key, record[key])
+        _line(key, record[key], emoji=None if with_icons else "")
         for key in keys
         if key in record and key not in skip and key not in _SECRET_KEYS and _present(record[key])
     ]
@@ -1694,18 +1696,52 @@ def format_track(fields: Any) -> str:
     return "\n\n".join(format_track_sections(fields))
 
 
+def _tnkb_lines(record: Mapping[str, Any]) -> list[str]:
+    """Render field kendaraan dengan identitas utama di urutan tetap."""
+    lines = []
+    used = set()
+
+    prioritized = (
+        ("NO. POL", ("nopol", "no_pol", "nomor_polisi", "no_polisi", "tnkb", "bagian")),
+        ("Pemilik", ("pemilik", "nama")),
+    )
+    for label, keys in prioritized:
+        key = next((candidate for candidate in keys if _present(record.get(candidate))), None)
+        if key:
+            value = record[key]
+            if key == "bagian":
+                # Parser stores numbered record headers such as "1. B1172TUC"
+                # in `bagian`; for vehicle results that header is the plate.
+                value = re.sub(r"^\s*\d+[.)]\s*", "", _text(value))
+            lines.append(_plain_line(label, value))
+            used.update(keys)
+
+    nik = record.get("nik")
+    if _present(nik):
+        digits = re.sub(r"\D", "", _text(nik))
+        label = "NIB" if len(digits) == 13 else "NIK"
+        lines.append(_plain_line(label, nik, code=True))
+        used.add("nik")
+
+    for key, value in record.items():
+        if key in used or key == "bagian" or key in _SECRET_KEYS or not _present(value):
+            continue
+        lines.append(_plain_line(_label(key), value, code=key in _CODE_KEYS))
+    return lines
+
+
 def format_tnkb_sections(fields: Any) -> list[str]:
     """Render data kendaraan sebagai pasangan key-value sederhana."""
     records = _records(fields)
     if not records:
-        return ["🚗 *DATA KENDARAAN*\n\nData kendaraan belum tersedia."]
+        return ["*DATA KENDARAAN*\n\nData kendaraan belum tersedia."]
 
     sections = []
     for number, record in enumerate(records, 1):
-        lines = _record_lines(record)
+        lines = _tnkb_lines(record)
         title = "DATA KENDARAAN" if len(records) == 1 else f"DATA KENDARAAN {number}"
-        sections.append(_block(title, lines, emoji="🚗") or
-                        "🚗 *DATA KENDARAAN*\n\nData kendaraan belum tersedia.")
+        sections.append(_block(title, lines) or
+                        "*DATA KENDARAAN*\n\nData kendaraan belum tersedia.")
     return sections
 
 
