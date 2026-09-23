@@ -14,14 +14,17 @@ Env (.env): TG_API_ID, TG_API_HASH, TG_BOT_TOKEN, BOT_ADMIN_IDS, API_BASE, API_K
 from __future__ import annotations
 
 import asyncio
+import io
 import json
 import logging
 import os
 import re
+import secrets
 import urllib.error
 import urllib.parse
 import urllib.request
 import uuid
+from datetime import datetime, timezone
 
 from telethon import Button, TelegramClient, events
 
@@ -37,6 +40,7 @@ BOT_TOKEN = os.getenv("TG_BOT_TOKEN")
 API_BASE = os.getenv("API_BASE", "http://127.0.0.1:8765")
 API_KEY = os.getenv("API_KEY")
 ADMIN_IDS = {int(x) for x in os.getenv("BOT_ADMIN_IDS", "").replace(" ", "").split(",") if x}
+TEST_IMAGE_PATH = os.getenv("TEST_IMAGE_PATH", "test.jpg")
 
 BOT = "bot1"  # teamkhususantibanditbot
 
@@ -238,6 +242,25 @@ def _fetch_media(url_path: str) -> bytes | None:
     req = urllib.request.Request(f"{API_BASE}{url_path}", headers=_headers())
     with urllib.request.urlopen(req, timeout=30) as r:
         return r.read()
+
+
+async def send_test_image(client, recipient, path: str = TEST_IMAGE_PATH,
+                          *, reply_to: int | None = None) -> None:
+    """Send a local JPEG for testing Telegram image delivery."""
+    if not os.path.isfile(path):
+        raise FileNotFoundError(path)
+
+    with open(path, "rb") as f:
+        blob = f.read()
+    image = io.BytesIO(blob)
+    image.name = os.path.basename(path) or "test.jpg"
+    await client.send_file(
+        recipient,
+        image,
+        force_document=False,
+        mime_type="image/jpeg",
+        reply_to=reply_to,
+    )
 
 
 def _cancel_job(job_id: str) -> bool:
@@ -462,7 +485,8 @@ async def main() -> None:
             commands=[BotCommand("start", "Buka menu"),
                       BotCommand("menu", "Buka menu"),
                       BotCommand("help", "Bantuan & daftar fitur"),
-                      BotCommand("whoami", "Lihat ID Telegram saya")]))
+                      BotCommand("whoami", "Lihat ID Telegram saya"),
+                      BotCommand("testimage", "Test kirim gambar")]))
     except Exception as e:  # noqa: BLE001
         log.warning("gagal set commands: %s", e)
 
@@ -571,6 +595,21 @@ async def main() -> None:
     @client.on(events.NewMessage(pattern=r"^/whoami$"))
     async def _whoami(ev):
         await ev.respond(f"🆔 ID Telegram Anda: `{ev.sender_id}`")
+
+    @client.on(events.NewMessage(pattern=r"^/testimage(?:\s+(.+))?$"))
+    async def _testimage(ev):
+        u = await boleh(ev.sender_id)
+        if not u or u["role"] != "admin":
+            return
+        path = ev.pattern_match.group(1) or TEST_IMAGE_PATH
+        try:
+            await send_test_image(client, ev.chat_id, path, reply_to=ev.id)
+            await ev.respond(f"✅ Test image sent: `{os.path.basename(path)}`")
+        except FileNotFoundError:
+            await ev.respond(f"⚠️ Image tidak ditemukan: `{path}`")
+        except Exception as e:  # noqa: BLE001
+            log.exception("gagal kirim test image")
+            await ev.respond(f"⚠️ Gagal mengirim image: `{e}`")
 
     @client.on(events.NewMessage(pattern=r"^/allow (\d+)$"))
     async def _allow(ev):
@@ -772,7 +811,11 @@ async def main() -> None:
             teks = format_hasil(hasil, judul, key)
             bagian = potong_pesan(teks)
         media = hasil.get("media") or []
-        tombol = kb_hasil(murl_maps) if not media else None
+        # Temporarily disable image/file delivery for /tnkb. Keep `media` and
+        # `kirim_media` intact so this can be enabled later by changing this
+        # flag to True for the vehicle command.
+        kirim_media_tnkb = key != "tnkb"
+        tombol = kb_hasil(murl_maps) if not media or not kirim_media_tnkb else None
 
         # Untuk nikbyphone dan nik, judul dibuat menjadi pesan sendiri agar
         # media tampil tepat di bawah judul, sebelum isi hasil pencarian.
@@ -794,10 +837,14 @@ async def main() -> None:
                 try:
                     blob = await asyncio.to_thread(_fetch_media, murl)
                     if blob:
+                        image = io.BytesIO(blob)
+                        stamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+                        image.name = f"foto_{stamp}_{secrets.token_hex(4)}.jpg"
                         await client.send_file(
                             uid,
-                            blob,
+                            image,
                             force_document=False,
+                            mime_type="image/jpeg",
                             buttons=(tombol_media
                                      if i == len(media[:10]) - 1 else None),
                         )
@@ -826,14 +873,14 @@ async def main() -> None:
 
         # Command lain mempertahankan urutan lama: teks lebih dahulu, media
         # setelah seluruh hasil teks terkirim.
-        if not header_terpisah:
+        if not header_terpisah and kirim_media_tnkb:
             await kirim_media(kb_kembali())
 
     # Command tak dikenal (/foo) tidak boleh senyap — dulu /help diabaikan
     # tanpa balasan sehingga terlihat seperti "bot mati". Command yang sah
     # sudah ditangani handler di atas; sisa "/..." dijawab dengan petunjuk.
     @client.on(events.NewMessage(
-        pattern=r"^/(?!start$|menu$|help$|whoami$|allow\s|users$|deny\s|stats$)\S+"))
+        pattern=r"^/(?!start$|menu$|help$|whoami$|testimage(?:\s|$)|allow\s|users$|deny\s|stats$)\S+"))
     async def _cmd_asing(ev):
         if not await boleh(ev.sender_id):
             return
