@@ -146,7 +146,10 @@ class TelegramConnector:
         finally:
             self.client.remove_event_handler(_handler)
 
+        import parser as _p
         for m in replies:
+            if _p.is_getcontact_limit(m.text):
+                continue
             log.info("<- %s: %s", target, (m.text or "").replace("\n", " ")[:200])
             # Tombol pada balasan dicatat: sebagian fitur menyajikan hasil
             # sebagai daftar kandidat yang harus diklik satu per satu, dan
@@ -215,7 +218,7 @@ class TelegramConnector:
         """
         import parser as _p
         for m in msgs:
-            if _p.is_limited(m.text):
+            if _p.is_limited(m.text) and not _p.is_getcontact_limit(m.text):
                 raise BatasHarian((m.text or "").strip())
 
     @classmethod

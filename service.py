@@ -337,19 +337,31 @@ KANDIDAT_MAKS = int(__import__("os").getenv("KANDIDAT_MAKS", "10"))
 LINGER_MENU = float(__import__("os").getenv("LINGER_MENU", "5"))
 
 
+def is_acceptable_result_message(cmd: str, value: str, text: str | None) -> bool:
+    """True bila satu pesan boleh mengakhiri tunggu dan masuk ke hasil query.
+
+    GetContact adalah otomasi internal bot dan dapat berjalan pada command apa
+    pun. Saat kuotanya habis, bot masih dapat meneruskan hasil command utama.
+    Pesan khusus itu selalu dilewati; limit fitur utama tetap menjadi hasil
+    sementara seperti sebelumnya.
+    """
+    txt = text or ""
+    if parser.is_getcontact_limit(txt):
+        return False
+    if parser.is_preamble(txt):
+        return False
+    records, _ = parser.parse_reply(txt)
+    fields = records[0] if len(records) == 1 else (records or None)
+    return relates_to_request(value, [txt], fields, cmd) is not False
+
+
 async def _ask_and_parse(tg, bot: str, cmd: str, value: str,
                          timeout: float | None, collect: int,
                          conn_berkas=None) -> dict:
     def _accept(msg) -> bool:
-        # Terima pesan non-ack ini sebagai jawaban kita, KECUALI terbukti milik
-        # permintaan lain (identitas di dalamnya bentrok dengan `value`) atau
-        # cuma peringatan hukum pengantar yang mendahului hasil.
-        txt = msg.text or ""
-        if parser.is_preamble(txt):
-            return False
-        records, _ = parser.parse_reply(txt)
-        fields = records[0] if len(records) == 1 else (records or None)
-        return relates_to_request(value, [txt], fields, cmd) is not False
+        # Pesan yang diterima di sini menentukan dua hal sekaligus: apakah
+        # wait_final berhenti dan apakah pesan masuk ke classifier akhir.
+        return is_acceptable_result_message(cmd, value, msg.text)
 
     # Bot baru sering memecah jawaban jadi beberapa pesan (bagian A-F pada
     # NIK BY PHONE, foto yang menyusul teks). Jadi SEMUA alur menu menunggu
@@ -375,7 +387,8 @@ async def _ask_and_parse(tg, bot: str, cmd: str, value: str,
                                         accept=None, linger=linger or LINGER_MENU)
             # Hasilnya bisa berupa daftar kandidat yang detailnya baru muncul
             # setelah diklik satu per satu.
-            good = [m for m in replies if not parser.is_preamble(m.text)]
+            good = [m for m in replies
+                    if not parser.is_preamble(m.text) and not parser.is_getcontact_limit(m.text)]
             out = parser.classify([m.text for m in good])
 
             # Detail tiap kandidat diurai TERPISAH lalu ditandai NIK-nya.
@@ -394,7 +407,8 @@ async def _ask_and_parse(tg, bot: str, cmd: str, value: str,
                     kandidat = []
                 tambahan = []
                 for kunci, pesan in kandidat:
-                    bersih = [m for m in pesan if not parser.is_preamble(m.text)]
+                    bersih = [m for m in pesan
+                              if not parser.is_preamble(m.text) and not parser.is_getcontact_limit(m.text)]
                     hasil = parser.classify([m.text for m in bersih])
                     if hasil["status"] != "found":
                         continue

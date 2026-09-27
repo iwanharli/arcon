@@ -93,6 +93,17 @@ def is_limited(text: str | None) -> bool:
     return any(m in t for m in LIMIT_MARKERS)
 
 
+def is_getcontact_limit(text: str | None) -> bool:
+    """True untuk kuota GetContact, otomasi samping dari NIK BY PHONE.
+
+    Peringatan ini bukan hasil akhir NIK BY PHONE: bot dapat meneruskannya
+    dengan balasan identitas untuk nomor yang sama. Berbeda dengan limit menu
+    utama, pemanggil harus melewati pesan ini dan tetap menunggu data utama.
+    """
+    t = (text or "").lower()
+    return "getcontact" in t and is_limited(t)
+
+
 # Penanda bahwa provider tidak menemukan data.
 NOT_FOUND_MARKERS = (
     "tidak ditemukan", "tidak tersedia", "data not found", "not found for",
@@ -356,15 +367,23 @@ def classify(replies: list[str]) -> dict:
     if not non_ack:
         return {"status": "queue_without_data", "msg": texts[-1], "fields": None}
 
-    final = non_ack[-1]     # dipakai sebagai pesan fallback saat tidak ada data
+    # GetContact adalah otomasi internal bot. Peringatan kuotanya dapat muncul
+    # di tengah alur command mana pun, lalu bot masih mengirim hasil utama.
+    # Jangan biarkan ia menjadi hasil akhir atau meracuni classifier.
+    utama = [t for t in non_ack if not is_getcontact_limit(t)]
+    if not utama:
+        return {"status": "queue_without_data",
+                "msg": "sumber data utama belum membalas", "fields": None}
 
-    # Limit harian dicek sebelum apa pun: balasannya sering tetap berisi
-    # pasangan key:value sehingga bisa lolos jadi found/not_found.
-    if any(is_limited(t) for t in non_ack):
-        batas = next(t for t in non_ack if is_limited(t))
+    final = utama[-1]     # dipakai sebagai pesan fallback saat tidak ada data
+
+    # Limit command utama tetap kondisi sementara. GetContact sudah dikeluarkan
+    # dari `utama`, jadi hanya limit fitur yang memang diminta yang menang di sini.
+    if any(is_limited(t) for t in utama):
+        batas = next(t for t in utama if is_limited(t))
         return {"status": "queue_without_data", "msg": batas, "fields": None}
 
-    if all(is_echo(t) for t in non_ack):
+    if all(is_echo(t) for t in utama):
         return {"status": "queue_without_data",
                 "msg": "bot memantulkan input (alur menu tidak aktif)",
                 "fields": None}
@@ -374,7 +393,7 @@ def classify(replies: list[str]) -> dict:
     # atau jawaban yang dipecah bot). Dulu hanya non_ack[-1] yang diurai,
     # sehingga halaman pertama tertimpa halaman terakhir.
     records, catatan = [], []
-    for teks in non_ack:
+    for teks in utama:
         rec, note = parse_reply(teks)
         # record identik antar halaman (mis. blok ringkasan) tidak digandakan
         for r in rec:
