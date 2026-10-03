@@ -66,11 +66,14 @@ async def test_bot_berbeda_tidak_digabung(conn, nilai):
     assert str(a["job_id"]) != str(b["job_id"])
 
 
-async def test_job_tersangkut_dikembalikan(conn, nilai):
-    """Job yang mati di tengah jalan harus bisa diulang.
+async def test_job_tersangkut_ditandai_gagal(conn, nilai):
+    """Job yang tertinggal 'running' setelah restart harus SELESAI (failed).
 
-    _claim_next() hanya mengambil 'queued', jadi baris yang tertinggal
-    'running' setelah restart tidak pernah diulang maupun selesai.
+    _claim_next() hanya mengambil 'queued', jadi baris 'running' yang
+    ditinggal proses mati tidak pernah selesai. Dulu baris itu dikembalikan ke
+    antrian, tapi bot kemungkinan sudah dihit — mengantre ulang = hit kedua =
+    kuota harian terbakar dua kali. Kini ditandai failed (bisa dicoba ulang
+    manual oleh pengguna).
     """
     job = await jobs.enqueue(conn, "bot1", "/nik", nilai)
     async with conn.cursor() as cur:
@@ -78,8 +81,12 @@ async def test_job_tersangkut_dikembalikan(conn, nilai):
                           (job["job_id"],))
     assert await jobs.pulihkan_tersangkut(conn) >= 1
     async with conn.cursor() as cur:
-        await cur.execute("SELECT state FROM search_jobs WHERE job_id=%s", (job["job_id"],))
-        assert (await cur.fetchone())["state"] == "queued"
+        await cur.execute("SELECT state, error, finished_at FROM search_jobs WHERE job_id=%s",
+                          (job["job_id"],))
+        row = await cur.fetchone()
+    assert row["state"] == "failed"
+    assert "restart" in (row["error"] or "")
+    assert row["finished_at"] is not None
 
 
 async def test_job_berkas_dedup_dan_validasi(conn, nilai):

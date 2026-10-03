@@ -182,8 +182,19 @@ async def app_session_clear(conn, username: str) -> int:
 
 # Auto-buat tabel kalau belum ada — migrasi manual arcon gampang terlewat,
 # endpoint log tidak boleh 500 gara-gara tabel hilang.
+#
+# Tapi DDL-nya cukup SEKALI per proses. Dulu CREATE TABLE + 2 CREATE INDEX
+# IF NOT EXISTS dijalankan di SETIAP log_insert/log_list — tiap login, search,
+# dan export di ArtemisID menulis log, jadi tiap aksi membayar 3 perintah DDL
+# ekstra (yang juga mengambil lock katalog). Flag baru diset SETELAH DDL
+# berhasil: kalau gagal (DB berkedip), panggilan berikutnya mencoba lagi.
+_user_logs_siap = False
+
 
 async def ensure_user_logs(conn) -> None:
+    global _user_logs_siap
+    if _user_logs_siap:
+        return
     async with conn.cursor() as cur:
         await cur.execute(
             """
@@ -204,6 +215,7 @@ async def ensure_user_logs(conn) -> None:
             "CREATE INDEX IF NOT EXISTS user_logs_time_idx "
             "ON user_logs (created_at DESC)"
         )
+    _user_logs_siap = True
 
 
 async def log_insert(conn, username: str, event: str,

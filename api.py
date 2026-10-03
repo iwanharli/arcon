@@ -22,6 +22,8 @@ import logging
 import os
 from contextlib import asynccontextmanager
 
+import psycopg
+
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, File, Form, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, Response
 from pydantic import BaseModel, Field
@@ -83,6 +85,14 @@ async def lifespan(app: FastAPI):
         await tg.stop()
         raise
 
+    # DDL user_logs dijalankan SEKALI di sini, bukan di tiap tulis log. Gagal
+    # di sini tidak boleh menggagalkan start: flag di db.py tetap belum diset,
+    # jadi log_insert berikutnya mencoba lagi sendiri.
+    try:
+        await db.ensure_user_logs(conn)
+    except Exception as exc:
+        log.warning("ensure_user_logs saat start gagal (dicoba lagi saat log pertama): %s", exc)
+
     stop = asyncio.Event()
     task = asyncio.create_task(jobs.run_worker(tg, worker_conn, stop_event=stop))
 
@@ -93,9 +103,70 @@ async def lifespan(app: FastAPI):
     finally:
         stop.set()
         task.cancel()
-        await conn.close()
-        await worker_conn.close()
+        # state["conn"] bisa sudah diganti _conn() (reconnect), dan conn lama
+        # mungkin sudah ditutup _jebakan_error. Tutup keduanya dengan diam:
+        # menutup koneksi yang sudah tertutup/putus jangan sampai menggagalkan
+        # shutdown sebelum tg.stop() sempat jalan.
+        sekarang = state.get("conn")
+        await _tutup_diam(sekarang)
+        if conn is not sekarang:
+            await _tutup_diam(conn)
+        await _tutup_diam(worker_conn)
         await tg.stop()
+
+
+# ------------------------------------------------- koneksi DB yang pulih sendiri
+
+# Satu koneksi dipakai bersama semua endpoint. Dulu koneksi ini dibuka sekali
+# seumur proses: begitu Postgres restart/jaringan berkedip, koneksinya putus
+# dan SEMUA endpoint (termasuk POST /auth/login yang dipakai login ArtemisID →
+# "Sumber verifikasi (connector) tidak merespons") gagal terus sampai server
+# di-restart manual. _conn() memeriksa koneksi tiap kali dipakai dan menyambung
+# ulang kalau sudah tertutup/putus.
+#
+# Lock mencegah banyak request yang datang bersamaan saat DB baru pulih
+# masing-masing membuka koneksi baru (yang lalu saling menimpa dan bocor).
+_conn_lock = asyncio.Lock()
+
+
+def _conn_rusak(c) -> bool:
+    """True kalau koneksi tidak bisa dipakai lagi (None/tertutup/putus).
+
+    getattr dengan default supaya objek tiruan di test (tanpa atribut
+    closed/broken) dianggap sehat.
+    """
+    return c is None or bool(getattr(c, "closed", False)) or bool(getattr(c, "broken", False))
+
+
+async def _tutup_diam(c) -> None:
+    """Tutup koneksi tanpa melempar error — koneksi putus sering gagal ditutup."""
+    if c is None:
+        return
+    try:
+        await c.close()
+    except Exception as exc:  # sudah tertutup/putus: tidak ada yang perlu dilakukan
+        log.debug("menutup koneksi DB lama gagal (diabaikan): %s", exc)
+
+
+async def _conn():
+    """Koneksi DB untuk endpoint; sambung ulang kalau yang lama rusak."""
+    c = state.get("conn")
+    if not _conn_rusak(c):
+        return c  # jalur cepat: tanpa lock, ini yang terjadi hampir selalu
+    async with _conn_lock:
+        # Periksa lagi: request lain mungkin sudah menyambung ulang selagi
+        # kita menunggu lock.
+        c = state.get("conn")
+        if not _conn_rusak(c):
+            return c
+        log.warning("koneksi DB API tertutup/putus — menyambung ulang ke db_artemis")
+        await _tutup_diam(c)
+        # Kalau connect gagal (DB masih mati), exception naik ke _jebakan_error
+        # → 503; request berikutnya akan mencoba lagi dari sini.
+        baru = await db.connect()
+        state["conn"] = baru
+        log.warning("koneksi DB API tersambung kembali")
+        return baru
 
 
 app = FastAPI(title="Artemis Telegram Connector", version="1.0", lifespan=lifespan)
@@ -110,6 +181,19 @@ async def _jebakan_error(request: Request, exc: Exception):
     mustahil dibedakan dari bug lain. Kini: traceback lengkap dicatat dan klien
     menerima JSON yang menyebut jenis errornya.
     """
+    if isinstance(exc, (psycopg.OperationalError, psycopg.InterfaceError)):
+        # DB putus/tidak terjangkau. Tutup koneksi bersama supaya _conn() di
+        # request berikutnya menyambung ulang (psycopg tidak selalu menandai
+        # `broken` untuk setiap kegagalan jaringan). 503, bukan 500: ini
+        # gangguan sementara di hulu, dan ArtemisID memperlakukan selain
+        # 401/403 sebagai "sumber tidak merespons" — memang itu yang terjadi.
+        log.warning("database bermasalah di %s %s: %s: %s", request.method,
+                    request.url.path, type(exc).__name__, exc)
+        await _tutup_diam(state.get("conn"))
+        return JSONResponse(
+            status_code=503,
+            content={"ok": False, "detail": "database sementara tidak tersedia"},
+        )
     log.exception("error tak tertangani di %s %s", request.method, request.url.path)
     return JSONResponse(
         status_code=500,
@@ -197,7 +281,7 @@ class UserLogReq(BaseModel):
 async def auth_login(req: LoginReq):
     """Verifikasi login aplikasi ke tabel app_users. Dipanggil server-to-server
     (mis. backend ArtemisID) dengan X-API-Key."""
-    u = await appauth.verify_login(state["conn"], req.username, req.password)
+    u = await appauth.verify_login(await _conn(), req.username, req.password)
     if not u:
         raise HTTPException(status_code=401, detail="username atau kata sandi salah")
     return {"ok": True, **u}
@@ -205,18 +289,18 @@ async def auth_login(req: LoginReq):
 
 @app.get("/auth/users", dependencies=[Depends(auth)])
 async def auth_users():
-    return {"ok": True, "users": await appauth.list_users(state["conn"])}
+    return {"ok": True, "users": await appauth.list_users(await _conn())}
 
 
 @app.post("/auth/users", dependencies=[Depends(auth)])
 async def auth_create(req: AppUserReq):
-    await appauth.create_user(state["conn"], req.username, req.password, req.role)
+    await appauth.create_user(await _conn(), req.username, req.password, req.role)
     return {"ok": True}
 
 
 @app.post("/auth/users/{username}/password", dependencies=[Depends(auth)])
 async def auth_set_password(username: str, req: PasswordReq):
-    ok = await appauth.set_password(state["conn"], username, req.password)
+    ok = await appauth.set_password(await _conn(), username, req.password)
     if not ok:
         raise HTTPException(status_code=404, detail="user tidak ditemukan")
     return {"ok": True}
@@ -224,7 +308,7 @@ async def auth_set_password(username: str, req: PasswordReq):
 
 @app.post("/auth/users/{username}/role", dependencies=[Depends(auth)])
 async def auth_set_role(username: str, role: str = Query(..., pattern="^(admin|user)$")):
-    ok = await appauth.set_role(state["conn"], username, role)
+    ok = await appauth.set_role(await _conn(), username, role)
     if not ok:
         raise HTTPException(status_code=404, detail="user tidak ditemukan")
     return {"ok": True}
@@ -232,7 +316,7 @@ async def auth_set_role(username: str, role: str = Query(..., pattern="^(admin|u
 
 @app.delete("/auth/users/{username}", dependencies=[Depends(auth)])
 async def auth_delete(username: str):
-    ok = await appauth.delete_user(state["conn"], username)
+    ok = await appauth.delete_user(await _conn(), username)
     if not ok:
         raise HTTPException(status_code=404, detail="user tidak ditemukan")
     return {"ok": True}
@@ -246,19 +330,19 @@ class SessionUpsertReq(BaseModel):
 
 @app.post("/app/sessions/upsert", dependencies=[Depends(auth)])
 async def app_session_upsert(req: SessionUpsertReq):
-    await db.app_session_upsert(state["conn"], req.id, req.user, req.data)
+    await db.app_session_upsert(await _conn(), req.id, req.user, req.data)
     return {"ok": True}
 
 
 @app.get("/app/sessions", dependencies=[Depends(auth)])
 async def app_session_list(user: str = Query(...)):
-    return {"ok": True, "items": await db.app_session_list(state["conn"], user)}
+    return {"ok": True, "items": await db.app_session_list(await _conn(), user)}
 
 
 @app.post("/app/logs", dependencies=[Depends(auth)])
 async def app_logs_create(req: UserLogReq):
     """Catat satu aktivitas user (login/logout/search/export dsb)."""
-    row = await db.log_insert(state["conn"], req.username.strip(), req.event, req.detail)
+    row = await db.log_insert(await _conn(), req.username.strip(), req.event, req.detail)
     return {"ok": True, "id": row}
 
 
@@ -267,7 +351,7 @@ async def app_logs_list(username: str | None = Query(None),
                         limit: int = Query(200, ge=1, le=1000)):
     """Log aktivitas. `username` opsional: kalau diisi filter satu user;
     tanpa username = SEMUA user (dipakai menu Log admin)."""
-    items = await db.log_list(state["conn"], username=username, limit=limit)
+    items = await db.log_list(await _conn(), username=username, limit=limit)
     return {"ok": True, "items": items}
 
 
@@ -279,7 +363,7 @@ async def app_cached(bot: str = Query(...), cmd: str = Query(...), value: str = 
     status lain (not_found/no_response) ikut dikembalikan + raw_text balasan
     mentah supaya kita bisa lihat apa yang bot balas tanpa hit ulang.
     """
-    row = await db.cached_row(state["conn"], bot, cmd, value)
+    row = await db.cached_row(await _conn(), bot, cmd, value)
     if not row:
         return {"ok": True, "found": False}
     found = row["status"] == "found"
@@ -298,7 +382,7 @@ async def app_cached(bot: str = Query(...), cmd: str = Query(...), value: str = 
 
 @app.get("/app/sessions/{sid}", dependencies=[Depends(auth)])
 async def app_session_get(sid: str, user: str = Query(...)):
-    data = await db.app_session_get(state["conn"], sid, user)
+    data = await db.app_session_get(await _conn(), sid, user)
     if data is None:
         raise HTTPException(status_code=404, detail="sesi tidak ditemukan")
     return {"ok": True, "session": data}
@@ -307,14 +391,14 @@ async def app_session_get(sid: str, user: str = Query(...)):
 @app.delete("/app/sessions", dependencies=[Depends(auth)])
 async def app_session_clear(user: str = Query(...)):
     """Hapus semua sesi milik user (kosongkan riwayat)."""
-    n = await db.app_session_clear(state["conn"], user)
+    n = await db.app_session_clear(await _conn(), user)
     return {"ok": True, "deleted": n}
 
 
 @app.get("/media/{media_id}", dependencies=[Depends(auth)])
 async def media(media_id: str):
     """Sajikan gambar (foto E-KTP dll) berdasarkan id."""
-    row = await db.get_media(state["conn"], media_id)
+    row = await db.get_media(await _conn(), media_id)
     if row is None:
         raise HTTPException(status_code=404, detail="media tidak ditemukan")
     return Response(content=bytes(row["bytes"]), media_type=row["content_type"],
@@ -323,20 +407,108 @@ async def media(media_id: str):
 
 @app.get("/health")
 async def health():
-    """Status jujur: selalu 200, tapi `ok` menyatakan apakah DB terjangkau.
+    """Status jujur: selalu 200, tapi `ok` menyatakan apakah layanan benar sehat.
 
     Sebelumnya endpoint ini 500 saat DB mati, sehingga tidak bisa dibedakan dari
     "aplikasi ikut mati". Sekarang laporan hidup/matinya database tetap terbaca
     di body (dipakai ArtemisID `/api/health` → `connector.ok`).
+
+    Dulu `ok` hanya mencerminkan DB: worker antrian yang sudah mati (task asyncio
+    selesai karena exception) atau job yang macet 'running' 20 menit tetap
+    dilaporkan sehat. Karena itu kini ikut dilaporkan:
+      - worker_task      : 'running' | 'dead: <ExcType>' | 'stopped'
+      - worker           : jobs.worker_status() (detak, job berjalan, error)
+      - running_oldest_s : umur job 'running' tertua (deteksi macet)
+      - queued           : jumlah job mengantre
+    `ok` = DB terjangkau DAN task worker tidak mati. Nilai pencarian (`value`,
+    data pribadi) TIDAK pernah ikut — endpoint ini tanpa API key.
     """
     db_status = "ok"
     stats = None
+    queued = None
+    running_oldest_s = None
+    conn = None
     try:
-        stats = await jobs.queue_stats(state["conn"])
+        conn = await _conn()
+        stats = await jobs.queue_stats(conn)
+        queued = int((stats or {}).get("queued", 0))
     except Exception as exc:  # psycopg.OperationalError dsb: DB mati/putus
         db_status = "error: " + type(exc).__name__
         log.warning("health: database tidak terjangkau: %s", exc)
-    return {"ok": db_status == "ok", "db": db_status, "antrian": stats}
+        if isinstance(exc, (psycopg.OperationalError, psycopg.InterfaceError)):
+            await _tutup_diam(state.get("conn"))  # paksa reconnect berikutnya
+    if db_status == "ok":
+        # Terpisah dari probe DB di atas: kalau kueri tambahan ini gagal, DB
+        # tetap dianggap terjangkau (queue_stats sudah berhasil) — field ini
+        # saja yang kosong.
+        try:
+            running_oldest_s = await _umur_running_tertua(conn)
+        except Exception as exc:
+            log.warning("health: gagal membaca umur job running: %s", exc)
+
+    worker_task = _status_task_worker(state.get("task"))
+    return {
+        "ok": db_status == "ok" and not worker_task.startswith("dead"),
+        "db": db_status,
+        "antrian": stats,
+        "worker": _status_worker(),
+        "worker_task": worker_task,
+        "running_oldest_s": running_oldest_s,
+        "queued": queued,
+    }
+
+
+async def _umur_running_tertua(conn) -> float | None:
+    """Detik sejak job 'running' tertua mulai; None kalau tidak ada.
+
+    Dihitung di Postgres (now() - started_at) supaya memakai jam yang sama
+    dengan yang menulis started_at.
+    """
+    async with conn.cursor() as cur:
+        await cur.execute(
+            "SELECT EXTRACT(EPOCH FROM now() - min(COALESCE(started_at, created_at))) AS umur "
+            "  FROM search_jobs WHERE state = 'running'"
+        )
+        row = await cur.fetchone()
+    umur = row["umur"] if row else None
+    return None if umur is None else round(float(umur), 1)
+
+
+def _status_task_worker(task) -> str:
+    """'running' | 'dead: <ExcType>' | 'stopped' dari asyncio.Task worker."""
+    if task is None:
+        return "stopped"
+    if not task.done():
+        return "running"
+    if task.cancelled():
+        return "stopped"
+    exc = task.exception()
+    return f"dead: {type(exc).__name__}" if exc is not None else "stopped"
+
+
+def _status_worker() -> dict | None:
+    """jobs.worker_status() kalau tersedia, tanpa data pribadi.
+
+    worker_status dibuat terpisah di jobs.py; hasattr supaya /health tetap
+    jalan di versi jobs.py yang belum memilikinya. `value` dibuang dengan
+    sengaja walau bentuk resminya memang tanpa itu — /health terbuka tanpa
+    API key, jadi jangan sampai NIK/nomor yang sedang dicari bocor ke sini.
+    """
+    if not hasattr(jobs, "worker_status"):
+        return None
+    try:
+        ws = jobs.worker_status()
+    except Exception as exc:
+        log.warning("health: jobs.worker_status() gagal: %s", exc)
+        return {"error": type(exc).__name__}
+    if not isinstance(ws, dict):
+        return None
+    ws = dict(ws)
+    ws.pop("value", None)
+    job = ws.get("current_job")
+    if isinstance(job, dict):
+        ws["current_job"] = {k: v for k, v in job.items() if k != "value"}
+    return ws
 
 
 def _katalog_skema() -> dict:
@@ -386,7 +558,7 @@ async def search(bot: str, req: SearchRequest):
     Kalau sudah ada di cache, hasilnya langsung dikembalikan (tanpa antrian).
     Kalau belum, job masuk antrian dan diproses worker satu per satu.
     """
-    conn = state["conn"]
+    conn = await _conn()
 
     if (err := jobs.validate(bot, req.cmd)):
         raise HTTPException(status_code=400, detail=err)
@@ -436,7 +608,7 @@ async def search_file(bot: str, cmd: str = Form(...), file: UploadFile = File(..
     if ctype is None:
         raise HTTPException(status_code=400, detail="hanya menerima gambar")
 
-    conn = state["conn"]
+    conn = await _conn()
     mid = await db.store_media(conn, data, ctype, bot=bot, cmd=cmd, value="(unggahan)")
     job = await jobs.enqueue(conn, bot, cmd, mid, requested_by=requested_by,
                              priority=priority)
@@ -449,10 +621,12 @@ async def get_search(job_id: str,
                      wait: float = Query(0, ge=0, le=300,
                                          description="detik menunggu sampai selesai (long-poll)")):
     """Ambil status/hasil job. `wait` > 0 untuk menunggu sampai selesai."""
-    conn = state["conn"]
     batas = asyncio.get_event_loop().time() + wait
 
     while True:
+        # Ambil koneksi tiap putaran: long-poll bisa berlangsung sampai 300 dtk,
+        # dan koneksi yang tersambung ulang di tengahnya harus ikut terpakai.
+        conn = await _conn()
         job = await jobs.get_job(conn, job_id)
         if job is None:
             raise HTTPException(status_code=404, detail="job tidak ditemukan")
@@ -465,14 +639,14 @@ async def get_search(job_id: str,
 @app.delete("/jobs/{job_id}", dependencies=[Depends(auth)])
 async def cancel_search(job_id: str):
     """Batalkan job yang masih mengantre. Yang sudah jalan tidak bisa dibatalkan."""
-    ok = await jobs.cancel(state["conn"], job_id)
+    ok = await jobs.cancel(await _conn(), job_id)
     return {"ok": ok}
 
 
 @app.get("/queue", dependencies=[Depends(auth)])
 async def queue_list(limit: int = Query(20, ge=1, le=200)):
     """Isi antrian saat ini + job yang sedang diproses."""
-    conn = state["conn"]
+    conn = await _conn()
     async with conn.cursor() as cur:
         await cur.execute(
             """
@@ -491,7 +665,7 @@ async def queue_list(limit: int = Query(20, ge=1, le=200)):
 @app.get("/health/commands", dependencies=[Depends(auth)])
 async def health_commands(hanya_bermasalah: bool = Query(False)):
     """Hasil pengecekan berkala terakhir (diisi oleh healthcheck.py)."""
-    conn = state["conn"]
+    conn = await _conn()
     async with conn.cursor() as cur:
         if hanya_bermasalah:
             await cur.execute("SELECT * FROM command_bermasalah")
@@ -540,7 +714,7 @@ async def cari_profil(
     if not nama:
         raise HTTPException(status_code=400, detail="parameter `nama` wajib diisi")
 
-    conn = state["conn"]
+    conn = await _conn()
     async with conn.cursor() as cur:
         await cur.execute(
             """
@@ -560,13 +734,13 @@ async def cari_profil(
 @app.get("/profiles/id/{profile_id}", dependencies=[Depends(auth)])
 async def get_profile_by_id(profile_id: int):
     """Detail profil lewat id — satu-satunya cara untuk profil tanpa NIK."""
-    return await _detail_profil(state["conn"], "id = %s", (profile_id,))
+    return await _detail_profil(await _conn(), "id = %s", (profile_id,))
 
 
 @app.get("/profiles/{nik}", dependencies=[Depends(auth)])
 async def get_profile(nik: str):
     """Ambil profil langsung dari database (tanpa menyentuh Telegram)."""
-    return await _detail_profil(state["conn"], "nik = %s", (nik,))
+    return await _detail_profil(await _conn(), "nik = %s", (nik,))
 
 
 async def _detail_profil(conn, where: str, params: tuple) -> dict:

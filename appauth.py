@@ -6,12 +6,25 @@ manage_users.py.
 """
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import hmac
 import os
 import secrets
 
 PBKDF2_ITER = 200_000
+
+# Hash tiruan untuk user yang tidak ada/nonaktif. Iterasinya HARUS sama dengan
+# hash asli: dulu dipakai "pbkdf2$1$00$00" (1 iterasi), sehingga username yang
+# tidak terdaftar dijawab jauh lebih cepat dan bisa ditebak dari waktu respons.
+_HASH_TIRUAN = f"pbkdf2${PBKDF2_ITER}${'00' * 16}${'00' * 32}"
+
+# Catatan: fungsi async di bawah memanggil hash_password/verify_password lewat
+# asyncio.to_thread. PBKDF2 200k iterasi makan ~65 ms CPU; dijalankan langsung
+# di fungsi async, selama itu SELURUH event loop (semua request + worker
+# antrian Telegram) berhenti. hashlib melepas GIL saat menghitung, jadi di
+# thread ia benar-benar berjalan paralel. Versi sync tetap publik dan tidak
+# berubah — dipakai CLI manage_users.py dan test.
 
 
 def hash_password(password: str) -> str:
@@ -37,6 +50,7 @@ def verify_password(password: str, stored: str) -> bool:
 async def create_user(conn, username: str, password: str, role: str = "user") -> None:
     if role not in ("admin", "user"):
         raise ValueError("role harus 'admin' atau 'user'")
+    hashed = await asyncio.to_thread(hash_password, password)
     async with conn.cursor() as cur:
         await cur.execute(
             """
@@ -45,7 +59,7 @@ async def create_user(conn, username: str, password: str, role: str = "user") ->
             ON CONFLICT (username) DO UPDATE SET password = EXCLUDED.password,
                                                  role = EXCLUDED.role
             """,
-            (username, hash_password(password), role),
+            (username, hashed, role),
         )
 
 
@@ -58,9 +72,9 @@ async def verify_login(conn, username: str, password: str) -> dict | None:
         row = await cur.fetchone()
     if not row or not row["active"]:
         # tetap hitung hash dummy supaya waktu respons seragam
-        verify_password(password, "pbkdf2$1$00$00")
+        await asyncio.to_thread(verify_password, password, _HASH_TIRUAN)
         return None
-    if not verify_password(password, row["password"]):
+    if not await asyncio.to_thread(verify_password, password, row["password"]):
         return None
     async with conn.cursor() as cur:
         await cur.execute(
@@ -77,10 +91,11 @@ async def list_users(conn) -> list[dict]:
 
 
 async def set_password(conn, username: str, password: str) -> bool:
+    hashed = await asyncio.to_thread(hash_password, password)
     async with conn.cursor() as cur:
         await cur.execute(
             "UPDATE app_users SET password = %s WHERE username = %s",
-            (hash_password(password), username))
+            (hashed, username))
         return cur.rowcount > 0
 
 

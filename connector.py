@@ -7,6 +7,7 @@ login OTP hanya diperlukan sekali.
 import asyncio
 import io
 import logging
+import os
 import re
 from typing import Awaitable, Callable, Iterable
 
@@ -26,6 +27,44 @@ class BatasHarian(RuntimeError):
     """Kuota harian fitur di bot habis — kondisi sementara, bukan kegagalan."""
 
 
+# Batas satu panggilan jaringan Telethon (resolve entity, kirim pesan, klik
+# tombol, baca riwayat). Kalau koneksi MTProto macet diam-diam (socket
+# menggantung tanpa error), panggilan-panggilan ini menunggu SELAMANYA —
+# asyncio.wait_for di ask()/_tunggu() hanya membatasi tunggu BALASAN bot,
+# bukan request-nya sendiri. Worker kita serial, jadi satu panggilan macet
+# menahan antrian semua pengguna.
+NET_TIMEOUT = float(os.getenv("TG_NET_TIMEOUT", "30"))
+
+# Unggah/unduh berkas wajar lebih lama dari request biasa (foto E-KTP ratusan
+# KB lewat DC media), jadi diberi batas sendiri supaya tidak terpotong oleh
+# NET_TIMEOUT yang dimaksudkan untuk request kecil.
+NET_TIMEOUT_BERKAS = float(os.getenv("TG_FILE_TIMEOUT", "120"))
+
+
+class JaringanTelegramMacet(RuntimeError):
+    """Panggilan jaringan Telegram tidak selesai dalam batas waktunya.
+
+    Sengaja BUKAN turunan TimeoutError: blok `except asyncio.TimeoutError` di
+    ask()/_tunggu() berarti "bot belum menjawab" dan menelannya. Request yang
+    macet harus tembus sampai worker supaya job ditandai gagal.
+    """
+
+
+async def _batas(coro, apa: str, batas: float | None = None):
+    """Jalankan satu panggilan Telethon dengan batas waktu.
+
+    NET_TIMEOUT dibaca saat dipanggil (bukan default argumen) supaya bisa
+    diubah lewat monkeypatch di tes.
+    """
+    detik = NET_TIMEOUT if batas is None else batas
+    try:
+        return await asyncio.wait_for(coro, detik)
+    except asyncio.TimeoutError:
+        raise JaringanTelegramMacet(
+            f"jaringan Telegram macet: {apa} tidak selesai dalam {detik:.0f} detik"
+        ) from None
+
+
 class TelegramConnector:
     def __init__(self, session: str = config.SESSION):
         self.client = TelegramClient(session, config.API_ID, config.API_HASH)
@@ -40,8 +79,10 @@ class TelegramConnector:
         await self.stop()
 
     async def start(self) -> None:
+        # client.start() sengaja tidak dibatasi: saat session belum ada ia
+        # menunggu OTP diketik manusia, jadi waktunya memang tak tentu.
         await self.client.start(phone=config.PHONE)
-        me = await self.client.get_me()
+        me = await _batas(self.client.get_me(), "get_me")
         log.info("login sebagai %s (id=%s)", me.username or me.first_name, me.id)
 
     async def stop(self) -> None:
@@ -52,7 +93,8 @@ class TelegramConnector:
     async def send(self, bot: str, text: str, **kwargs) -> Message:
         """Kirim pesan ke satu bot, tanpa menunggu balasan."""
         target = config.resolve(bot)
-        msg = await self.client.send_message(target, text, **kwargs)
+        msg = await _batas(self.client.send_message(target, text, **kwargs),
+                           f"kirim pesan ke {target}")
         log.info("-> %s: %s", target, text)
         return msg
 
@@ -84,7 +126,7 @@ class TelegramConnector:
         tetap dikembalikan.
         """
         target = config.resolve(bot)
-        entity = await self.client.get_entity(target)
+        entity = await _batas(self.client.get_entity(target), f"resolve {target}")
         timeout = config.BOT_TIMEOUT if timeout is None else timeout
         markers = tuple(ack_markers)
 
@@ -115,7 +157,8 @@ class TelegramConnector:
             if aksi is not None:
                 await aksi(entity)
             else:
-                await self.client.send_message(entity, text)
+                await _batas(self.client.send_message(entity, text),
+                             f"kirim pesan ke {target}")
                 log.info("-> %s: %s", target, text)
             try:
                 await asyncio.wait_for(done.wait(), timeout)
@@ -200,7 +243,8 @@ class TelegramConnector:
                 for col_i, b in enumerate(row.buttons):
                     if "batal" in (b.text or "").lower() or "cancel" in (b.text or "").lower():
                         try:
-                            await m.click(row_i, col_i)
+                            await _batas(m.click(row_i, col_i),
+                                         f"klik Batal di {bot}")
                             log.info("state %s dibatalkan lewat tombol %r", bot, b.text)
                             return True
                         except Exception as exc:       # noqa: BLE001
@@ -363,7 +407,7 @@ class TelegramConnector:
         markers = tuple(ack_markers)
         rantai = [choice] if isinstance(choice, str) else list(choice)
         target = config.resolve(bot)
-        entity = await self.client.get_entity(target)
+        entity = await _batas(self.client.get_entity(target), f"resolve {target}")
 
         def _is_prompt(m: Message) -> bool:
             t = (m.text or "").lower()
@@ -400,7 +444,7 @@ class TelegramConnector:
                 return self._cari_tombol([m], rantai[ke]) is not None
 
             async def _klik(_m=msg, _b=baris, _k=kolom, _ch=ch):
-                await _m.click(_b, _k)
+                await _batas(_m.click(_b, _k), f"klik {_ch!r} di {target}")
                 log.info("-> %s: klik %r di %r", target, _ch, menu)
 
             pesan = await self._tunggu(entity, _berhenti, step_timeout, aksi=_klik)
@@ -471,7 +515,8 @@ class TelegramConnector:
         if maks < 1:
             return []
         markers = tuple(ack_markers)
-        entity = await self.client.get_entity(config.resolve(bot))
+        entity = await _batas(self.client.get_entity(config.resolve(bot)),
+                              f"resolve {bot}")
         terkumpul: list[Message] = []
         terakhir = pesan
         sebelumnya = {(m.text or "") for m in pesan}
@@ -489,7 +534,7 @@ class TelegramConnector:
                 return bool(t.strip()) and t not in sebelumnya
 
             async def _klik(_m=msg, _b=baris, _k=kolom):
-                await _m.click(_b, _k)
+                await _batas(_m.click(_b, _k), f"klik Next di {bot}")
 
             hasil = await self._tunggu(entity, _baru, step_timeout, aksi=_klik)
             halaman = [m for m in hasil if _baru(m)]
@@ -523,7 +568,7 @@ class TelegramConnector:
         """
         markers = tuple(ack_markers)
         target = config.resolve(bot)
-        entity = await self.client.get_entity(target)
+        entity = await _batas(self.client.get_entity(target), f"resolve {target}")
 
         if await self.cancel_pending(bot):
             await asyncio.sleep(2)
@@ -553,7 +598,7 @@ class TelegramConnector:
             msg, baris, kolom = found
 
             async def _klik():
-                await msg.click(baris, kolom)
+                await _batas(msg.click(baris, kolom), f"klik mode {choice!r} di {target}")
                 log.info("-> %s: pilih mode %r", target, choice)
 
             pesan = await self._tunggu(entity, _is_prompt, prompt_timeout, aksi=_klik)
@@ -565,7 +610,8 @@ class TelegramConnector:
         berkas.name = nama
 
         async def _kirim(ent):
-            await self.client.send_file(ent, berkas, force_document=False)
+            await _batas(self.client.send_file(ent, berkas, force_document=False),
+                         f"kirim berkas ke {target}", NET_TIMEOUT_BERKAS)
             log.info("-> %s: kirim berkas %s (%d byte)", target, nama, len(data))
 
         return await self.ask(bot, "", timeout=timeout, wait_final=True,
@@ -592,7 +638,8 @@ class TelegramConnector:
         subject yang sama dan saling ter-dedup di profile_records.
         """
         markers = tuple(ack_markers)
-        entity = await self.client.get_entity(config.resolve(bot))
+        entity = await _batas(self.client.get_entity(config.resolve(bot)),
+                              f"resolve {bot}")
 
         tombol = []
         for m in pesan:
@@ -635,7 +682,7 @@ class TelegramConnector:
                 return bool(t.strip()) or m.media is not None
 
             async def _klik(_m=msg, _b=baris, _k=kolom, _d=data):
-                await _m.click(_b, _k)
+                await _batas(_m.click(_b, _k), f"klik kandidat {_d} di {bot}")
                 log.info("-> kandidat %d/%d: %s", ke, min(len(tombol), maks), _d)
 
             hasil = await self._tunggu(entity, _isi, step_timeout, aksi=_klik)
@@ -659,8 +706,12 @@ class TelegramConnector:
         from telethon.tl.types import MessageMediaPhoto, MessageMediaDocument
         if not isinstance(msg.media, (MessageMediaPhoto, MessageMediaDocument)):
             return None
+        # Unduhan tetap best-effort (foto pelengkap tidak boleh menggagalkan
+        # hasil teks yang sudah didapat), tapi kini dibatasi waktunya: dulu
+        # unduhan yang macet menahan job tanpa akhir.
         try:
-            data = await self.client.download_media(msg, file=bytes)
+            data = await _batas(self.client.download_media(msg, file=bytes),
+                                "unduh media", NET_TIMEOUT_BERKAS)
         except Exception as exc:  # noqa: BLE001
             log.warning("gagal unduh media: %s", exc)
             return None
@@ -683,7 +734,8 @@ class TelegramConnector:
     async def history(self, bot: str, limit: int = 20) -> list[Message]:
         """Baca riwayat chat dengan bot (terbaru dulu)."""
         target = config.resolve(bot)
-        return await self.client.get_messages(target, limit=limit)
+        return await _batas(self.client.get_messages(target, limit=limit),
+                            f"baca riwayat {target}")
 
     # ---------- listen ----------
 

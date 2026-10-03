@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import re
 
 import connector
@@ -24,6 +25,14 @@ log = logging.getLogger("artemis.service")
 
 # Telegram/bot menolak sementara karena terlalu cepat: "Please wait 19 second(s)".
 RATE_LIMIT_RE = re.compile(r"wait\s+(\d+)\s*second", re.IGNORECASE)
+
+# Jeda rate limit terlama yang masih mau DITUNGGU di dalam job. Worker kita
+# serial: tidur 500 detik di sini berarti antrian SEMUA pengguna ikut macet
+# selama itu, lalu masih ditambah satu putaran tanya penuh (FINAL_TIMEOUT).
+# Di atas batas ini job langsung diselesaikan sebagai queue_without_data —
+# status sementara yang tidak masuk cache (db.lookup hanya membaca 'found'),
+# jadi pengguna bisa mengulang setelah jedanya lewat.
+RATE_LIMIT_MAKS = float(os.getenv("RATE_LIMIT_MAKS", "60"))
 
 
 def _rate_limit_seconds(texts: list[str]) -> int | None:
@@ -188,7 +197,20 @@ async def query(tg, conn, bot: str, cmd: str, value: str, *,
     # dicatat sebagai not_found (bisa mengunci hasil kosong ke cache).
     if retry_on_rate_limit:
         wait = _rate_limit_seconds(result["_texts"])
-        if wait:
+        if wait and wait > RATE_LIMIT_MAKS:
+            # Jangan tidur & jangan ulangi: lihat RATE_LIMIT_MAKS. _texts tetap
+            # dibawa supaya teks asli bot tersimpan sebagai raw_text; _replies
+            # dikosongkan supaya tidak ada media yang diunduh dari pesan jeda.
+            log.warning("kena rate limit %ss (> batas %.0fs) — job diselesaikan "
+                        "tanpa menunggu", wait, RATE_LIMIT_MAKS)
+            result = {
+                "status": "queue_without_data",
+                "msg": f"bot meminta jeda {wait} detik; coba lagi nanti",
+                "fields": None,
+                "_texts": result.get("_texts", []),
+                "_replies": [],
+            }
+        elif wait:
             log.warning("kena rate limit, tunggu %ss lalu ulangi", wait + 1)
             await asyncio.sleep(wait + 1)
             result = await _ask_and_parse(tg, bot, cmd, value, timeout, collect, conn)
