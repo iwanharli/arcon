@@ -145,10 +145,15 @@ async def touch_seen(conn, tid: int) -> None:
 
 
 async def audit(conn, tid, uname, name, cmd, value, status) -> None:
-    async with conn.cursor() as cur:
-        await cur.execute(
-            "INSERT INTO bot_audit (telegram_id,username,name,bot,cmd,value,status) "
-            "VALUES (%s,%s,%s,%s,%s,%s,%s)", (tid, uname, name, BOT, cmd, value, status))
+    # Audit hanya catatan: gagal menulisnya (DB sedang bermasalah) tidak boleh
+    # membuat hasil pencarian yang sudah didapat tidak terkirim ke pengguna.
+    try:
+        async with conn.cursor() as cur:
+            await cur.execute(
+                "INSERT INTO bot_audit (telegram_id,username,name,bot,cmd,value,status) "
+                "VALUES (%s,%s,%s,%s,%s,%s,%s)", (tid, uname, name, BOT, cmd, value, status))
+    except Exception as exc:  # noqa: BLE001
+        log.warning("audit gagal ditulis (diabaikan): %s", exc)
 
 
 # Status audit yang TIDAK dihitung sebagai pemakaian kuota (tidak menembak bot).
@@ -469,7 +474,7 @@ WELCOME = "Pilih data yang ingin dicari:"
 async def main() -> None:
     if not BOT_TOKEN:
         raise SystemExit("TG_BOT_TOKEN belum diisi di .env")
-    conn = await db.connect()
+    conn = await db.connect_pulih()
     await ensure_admins(conn)
 
     client = TelegramClient("artemis_bot", config.API_ID, config.API_HASH)

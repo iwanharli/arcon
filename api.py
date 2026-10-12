@@ -18,6 +18,7 @@ from __future__ import annotations
 import asyncio
 import json
 import pathlib
+import time
 import logging
 import os
 from contextlib import asynccontextmanager
@@ -153,7 +154,13 @@ async def _conn():
     c = state.get("conn")
     if not _conn_rusak(c):
         return c  # jalur cepat: tanpa lock, ini yang terjadi hampir selalu
+    mulai = time.monotonic()
     async with _conn_lock:
+        # Yang antre selagi penyambungan gagal ikut gagal (503) tanpa mencoba lagi
+        # satu per satu: tiap percobaan bisa makan connect_timeout.
+        gagal = state.get("_conn_gagal")
+        if gagal and gagal[0] >= mulai:
+            raise gagal[1]
         # Periksa lagi: request lain mungkin sudah menyambung ulang selagi
         # kita menunggu lock.
         c = state.get("conn")
@@ -163,7 +170,11 @@ async def _conn():
         await _tutup_diam(c)
         # Kalau connect gagal (DB masih mati), exception naik ke _jebakan_error
         # → 503; request berikutnya akan mencoba lagi dari sini.
-        baru = await db.connect()
+        try:
+            baru = await db.connect()
+        except Exception as exc:
+            state["_conn_gagal"] = (time.monotonic(), exc)
+            raise
         state["conn"] = baru
         log.warning("koneksi DB API tersambung kembali")
         return baru
