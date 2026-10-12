@@ -10,9 +10,11 @@ Alur pemakaian (lihat store_result / lookup):
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
+import time
 from datetime import datetime, timezone
 from typing import Any
 
@@ -44,8 +46,168 @@ _PROFILE_COLS = [
 ]
 
 
-async def connect() -> psycopg.AsyncConnection:
-    return await psycopg.AsyncConnection.connect(DSN, row_factory=dict_row, autocommit=True)
+# Batas waktu sisi KLIEN per operasi DB. statement_timeout (server) tidak cukup:
+# kalau jaringan menelan paket, server membatalkan kueri tapi jawabannya tidak
+# pernah sampai, dan klien menggantung selamanya. asyncio.wait_for juga tidak:
+# membatalkan kueri psycopg menunggu ~30 dtk handshake cancel yang ikut macet.
+OP_TIMEOUT = float(os.getenv("DB_OP_TIMEOUT", "30"))
+PING_TIMEOUT = 5.0
+
+
+async def _batas(raw: psycopg.AsyncConnection, coro, detik: float):
+    """Jalankan coro; lewat `detik` -> putus socket paksa dan lempar OperationalError.
+
+    Socket dimatikan (pgconn.finish) sehingga koneksi tampak `closed` dan
+    pemakai (_conn() API, KoneksiPulih, worker) menyambung ulang di panggilan
+    berikutnya, bukan memakai koneksi yang menggantung.
+    """
+    task = asyncio.ensure_future(coro)
+    task.add_done_callback(lambda t: t.cancelled() or t.exception())  # cegah "never retrieved"
+    try:
+        done, _ = await asyncio.wait({task}, timeout=detik)
+    except BaseException:  # pemanggil dibatalkan: jangan tinggalkan kueri yatim
+        task.cancel()
+        raise
+    if done:
+        return task.result()
+    log.warning("operasi DB melewati batas %.0fs, koneksi diputus paksa", detik)
+    try:
+        raw.pgconn.finish()
+    except Exception:  # noqa: BLE001 -- sudah mati pun tak apa
+        pass
+    task.cancel()
+    await asyncio.wait({task}, timeout=2)
+    raise psycopg.OperationalError(f"operasi DB melewati batas {detik:.0f}s (koneksi diputus)")
+
+
+class _KursorBatas:
+    def __init__(self, raw, cur) -> None:
+        self._raw, self._cur = raw, cur
+
+    async def execute(self, *a, **k):
+        await _batas(self._raw, self._cur.execute(*a, **k), OP_TIMEOUT)
+        return self
+
+    async def fetchone(self):
+        return await _batas(self._raw, self._cur.fetchone(), OP_TIMEOUT)
+
+    async def fetchall(self):
+        return await _batas(self._raw, self._cur.fetchall(), OP_TIMEOUT)
+
+    def __getattr__(self, n):  # rowcount dst.
+        return getattr(self._cur, n)
+
+
+class _CmKursorBatas:
+    def __init__(self, raw, a, k) -> None:
+        self._raw, self._a, self._k = raw, a, k
+
+    async def __aenter__(self):
+        self._cm = self._raw.cursor(*self._a, **self._k)
+        return _KursorBatas(self._raw, await self._cm.__aenter__())
+
+    async def __aexit__(self, *exc):
+        try:
+            return await self._cm.__aexit__(*exc)
+        except Exception:  # noqa: BLE001
+            if exc[0] is None:
+                raise
+            return False  # koneksi sudah mati; jangan tutupi error aslinya
+
+
+class KoneksiBatas:
+    """Koneksi psycopg yang setiap execute/fetch-nya dibatasi waktu (lihat _batas).
+
+    Hanya mengekspos yang dipakai kode ini: cursor()/execute()/close()/closed/broken.
+    """
+
+    def __init__(self, raw: psycopg.AsyncConnection) -> None:
+        self._raw = raw
+
+    closed = property(lambda self: self._raw.closed)
+    broken = property(lambda self: self._raw.broken)
+
+    def cursor(self, *a, **k) -> _CmKursorBatas:
+        return _CmKursorBatas(self._raw, a, k)
+
+    async def execute(self, q, *a, batas: float | None = None):
+        return await _batas(self._raw, self._raw.execute(q, *a), batas or OP_TIMEOUT)
+
+    async def close(self) -> None:
+        await self._raw.close()
+
+
+class KoneksiPulih:
+    """Pembungkus koneksi yang menyambung ulang sendiri, untuk proses berumur panjang.
+
+    Bot Telegram membuka satu koneksi DB sekali seumur proses; begitu Postgres
+    restart, koneksinya mati dan SETIAP handler gagal ("the connection is closed")
+    sampai proses di-restart. Cukup untuk pemakai yang hanya memanggil
+    `async with conn.cursor()`; dicek dengan SELECT 1 sebelum dipakai.
+    """
+
+    def __init__(self) -> None:
+        self._c: KoneksiBatas | None = None
+        self._lock = asyncio.Lock()
+        self._gagal: tuple[float, Exception] | None = None
+
+    async def _ambil(self) -> KoneksiBatas:
+        mulai = time.monotonic()
+        async with self._lock:
+            # Yang antre selagi penyambungan gagal ikut gagal, tidak mencoba satu per
+            # satu (tiap percobaan bisa makan connect_timeout; 50 handler = menit).
+            if self._gagal and self._gagal[0] >= mulai:
+                raise self._gagal[1]
+            c = self._c
+            if c is not None and not c.closed and not c.broken:
+                try:
+                    await c.execute("SELECT 1", batas=PING_TIMEOUT)
+                    return c
+                except psycopg.Error:
+                    pass
+            if c is not None:
+                try:
+                    await c.close()
+                except Exception:  # sudah putus; abaikan
+                    pass
+                log.warning("koneksi DB putus, menyambung ulang")
+            try:
+                self._c = await connect()
+            except Exception as exc:
+                self._gagal = (time.monotonic(), exc)
+                raise
+            return self._c
+
+    def cursor(self, *a, **k) -> "_KursorPulih":
+        return _KursorPulih(self, a, k)
+
+
+class _KursorPulih:
+    def __init__(self, p: KoneksiPulih, a, k) -> None:
+        self._p, self._a, self._k = p, a, k
+
+    async def __aenter__(self):
+        self._cm = (await self._p._ambil()).cursor(*self._a, **self._k)
+        return await self._cm.__aenter__()
+
+    async def __aexit__(self, *exc):
+        return await self._cm.__aexit__(*exc)
+
+
+async def connect_pulih() -> KoneksiPulih:
+    p = KoneksiPulih()
+    await p._ambil()  # gagal cepat saat start kalau DB memang mati
+    return p
+
+
+async def connect() -> KoneksiBatas:
+    # Keepalive + batas waktu TCP: koneksi yang mati diam-diam (NAT/firewall
+    # membuang sesi idle, Postgres restart tanpa RST) otherwise membuat query
+    # menggantung selamanya -- _conn_rusak() tidak melihatnya karena belum "closed".
+    return KoneksiBatas(await psycopg.AsyncConnection.connect(
+        DSN, row_factory=dict_row, autocommit=True, connect_timeout=10,
+        keepalives=1, keepalives_idle=30, keepalives_interval=10,
+        keepalives_count=3, tcp_user_timeout=45000))
 
 
 # ------------------------------------------------------------------- cache
